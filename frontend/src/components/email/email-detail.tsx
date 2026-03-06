@@ -587,17 +587,21 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
       )}
 
       {/* AI Tools */}
-      <AiSummary emailId={id} provider={provider} />
-      <div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowDraft(!showDraft)}
-        >
-          {showDraft ? "Hide Draft" : "AI Draft Reply"}
-        </Button>
-        {showDraft && <AiDraft emailId={id} provider={provider} />}
-      </div>
+      {id && (
+        <>
+          <AiSummary emailId={id} provider={provider} />
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDraft(!showDraft)}
+            >
+              {showDraft ? "Hide Draft" : "AI Draft Reply"}
+            </Button>
+            {showDraft && <AiDraft emailId={id} provider={provider} />}
+          </div>
+        </>
+      )}
 
       {/* Bottom reply bar */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
