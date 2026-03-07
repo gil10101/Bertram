@@ -32,8 +32,9 @@ export default function DraftsPage() {
   };
 
   return (
+    <div className="h-full overflow-y-auto p-4 md:p-6">
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold md:text-2xl">Drafts</h1>
+      <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Drafts</h1>
 
       {isLoading && (
         <div className="space-y-2">
@@ -89,6 +90,7 @@ export default function DraftsPage() {
             </button>
           </button>
         ))}
+    </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAiDraft } from "@/hooks/use-ai-action";
+import { ProgressiveText } from "./progressive-text";
 import { cn } from "@/lib/utils";
 
 interface AiDraftProps {
@@ -11,11 +12,19 @@ interface AiDraftProps {
 
 export function AiDraft({ emailId, provider }: AiDraftProps) {
   const [draft, setDraft] = useState("");
+  const [isRevealed, setIsRevealed] = useState(false);
   const { data, isLoading, error, execute } = useAiDraft(emailId, provider);
 
   useEffect(() => {
-    if (data) setDraft(data);
+    if (data) {
+      setDraft(data);
+      setIsRevealed(false);
+    }
   }, [data]);
+
+  const handleRevealComplete = useCallback(() => {
+    setIsRevealed(true);
+  }, []);
 
   const handleGenerate = () => {
     execute(emailId);
@@ -27,7 +36,7 @@ export function AiDraft({ emailId, provider }: AiDraftProps) {
         <button
           type="button"
           onClick={handleGenerate}
-          className="w-fit rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+          className="w-fit rounded-md border border-paprika/30 bg-background px-3 py-1.5 text-sm font-medium text-paprika hover:bg-paprika/10"
         >
           Generate Draft
         </button>
@@ -40,15 +49,25 @@ export function AiDraft({ emailId, provider }: AiDraftProps) {
       )}
       {error && <p className="text-sm text-destructive">{error.message}</p>}
       {(data || draft) && (
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className={cn(
-            "min-h-[120px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm",
-            "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          )}
-          placeholder="AI-generated draft..."
-        />
+        isRevealed ? (
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className={cn(
+              "min-h-[120px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm",
+              "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            )}
+            placeholder="AI-generated draft..."
+          />
+        ) : (
+          <div
+            className={cn(
+              "min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm whitespace-pre-wrap",
+            )}
+          >
+            <ProgressiveText text={draft} wordDelay={20} onComplete={handleRevealComplete} />
+          </div>
+        )
       )}
     </div>
   );

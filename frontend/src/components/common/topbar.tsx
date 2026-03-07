@@ -19,10 +19,11 @@ export function Topbar() {
   }, [debouncedInput, setQuery]);
 
   return (
-    <header className="flex h-14 items-center justify-between gap-3 border-b bg-background px-4 md:h-16 md:gap-4 md:px-6">
+    <header className="flex h-14 items-center justify-between gap-3 bg-background px-4 md:h-16 md:gap-4 md:px-6">
       <button
         type="button"
         onClick={toggle}
+        aria-label="Toggle sidebar"
         className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground md:hidden"
       >
         <Menu className="h-5 w-5" />
@@ -30,7 +31,7 @@ export function Topbar() {
       <div className="relative flex min-w-0 flex-1 max-w-md">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          type="search"
+          type="text"
           placeholder="Search emails..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -47,7 +48,6 @@ export function Topbar() {
         )}
       </div>
       <UserButton
-        afterSignOutUrl="/"
         appearance={{
           elements: {
             avatarBox: "h-8 w-8 md:h-9 md:w-9",

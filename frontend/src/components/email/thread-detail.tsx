@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Paperclip, Download, FileText, Image, Film, Music, Archive, File, Eye, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Paperclip, Download, FileText, Image, Film, Music, Archive, File, Eye, X, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,9 @@ import type { Email, EmailAttachment } from "@/types/email";
 interface ThreadDetailProps {
   threadId: string;
   provider?: string;
+  embedded?: boolean;
+  onClose?: () => void;
+  onActionComplete?: () => void;
 }
 
 interface EmailAddress {
@@ -244,6 +247,14 @@ function MessageCard({
   const sender = message.sender;
   const attachments = message.attachments;
 
+  useEffect(() => {
+    return () => {
+      if (previewAtt?.blobUrl) {
+        URL.revokeObjectURL(previewAtt.blobUrl);
+      }
+    };
+  }, [previewAtt]);
+
   const fetchBlob = async (att: EmailAttachment) => {
     const api = createApiClient(getToken);
     const url = api.getAttachmentUrl(message.id, att.id, provider);
@@ -420,6 +431,7 @@ function MessageCard({
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
+                URL.revokeObjectURL(previewAtt.blobUrl);
               }}
             />
           )}
@@ -429,7 +441,7 @@ function MessageCard({
   );
 }
 
-export function ThreadDetail({ threadId, provider }: ThreadDetailProps) {
+export function ThreadDetail({ threadId, provider, embedded, onClose, onActionComplete }: ThreadDetailProps) {
   const { getToken } = useAuth();
   const router = useRouter();
   const { thread, isLoading, error } = useThread(threadId, provider);
@@ -464,9 +476,9 @@ export function ThreadDetail({ threadId, provider }: ThreadDetailProps) {
           variant="outline"
           size="sm"
           className="mt-4"
-          onClick={() => router.push("/inbox")}
+          onClick={embedded ? onClose : () => router.push("/inbox")}
         >
-          Back to Inbox
+          {embedded ? "Close" : "Back to Inbox"}
         </Button>
       </div>
     );
@@ -489,14 +501,25 @@ export function ThreadDetail({ threadId, provider }: ThreadDetailProps) {
             </p>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.push("/inbox")}
-        >
-          Back
-        </Button>
+        {embedded ? (
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/inbox")}
+          >
+            Back
+          </Button>
+        )}
       </div>
+
+      {/* AI Summary — at top for quick access */}
+      {lastMessage && (
+        <AiSummary emailId={lastMessage.id} provider={provider} />
+      )}
 
       {/* Messages */}
       <div className="flex flex-col gap-3">
@@ -510,23 +533,20 @@ export function ThreadDetail({ threadId, provider }: ThreadDetailProps) {
         ))}
       </div>
 
-      {/* AI tools for the latest message */}
+      {/* AI Draft */}
       {lastMessage && (
-        <>
-          <AiSummary emailId={lastMessage.id} provider={provider} />
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDraft(!showDraft)}
-            >
-              {showDraft ? "Hide Draft" : "AI Draft Reply"}
-            </Button>
-            {showDraft && (
-              <AiDraft emailId={lastMessage.id} provider={provider} />
-            )}
-          </div>
-        </>
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDraft(!showDraft)}
+          >
+            {showDraft ? "Hide Draft" : "AI Draft Reply"}
+          </Button>
+          {showDraft && (
+            <AiDraft emailId={lastMessage.id} provider={provider} />
+          )}
+        </div>
       )}
     </div>
   );

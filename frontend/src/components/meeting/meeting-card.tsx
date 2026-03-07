@@ -15,16 +15,9 @@ function getProviders(meeting: Meeting): string[] {
   return [meeting.source || "bertram"];
 }
 
-function ProviderStripe({ providers }: { providers: string[] }) {
+function ProviderStripe() {
   return (
-    <div className="absolute inset-y-0 left-0 flex w-1 flex-col overflow-hidden rounded-l-lg">
-      {providers.map((p) => (
-        <div
-          key={p}
-          className={cn("flex-1", PROVIDER_COLORS[p]?.bg ?? "bg-primary")}
-        />
-      ))}
-    </div>
+    <div className="absolute inset-y-0 left-0 w-1 rounded-l-lg bg-muted-foreground/30" />
   );
 }
 
@@ -70,7 +63,7 @@ export function MeetingCard({ meeting, className, onClick }: MeetingCardProps) {
         className,
       )}
     >
-      <ProviderStripe providers={providers} />
+      <ProviderStripe />
       <div className="flex items-start justify-between">
         <h3 className="font-semibold">{meeting.title}</h3>
         <ProviderBadges providers={providers} />

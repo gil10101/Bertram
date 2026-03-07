@@ -10,9 +10,6 @@ import {
 } from "react";
 import { useAuth } from "@clerk/nextjs";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-
 interface NewEmailPreview {
   id: string;
   subject: string;
@@ -50,7 +47,7 @@ export function useEmailSync() {
 }
 
 export function EmailSyncProvider({ children }: { children: React.ReactNode }) {
-  const { getToken, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
   const [newEmailCount, setNewEmailCount] = useState(0);
   const [newEmails, setNewEmails] = useState<NewEmailPreview[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -80,17 +77,16 @@ export function EmailSyncProvider({ children }: { children: React.ReactNode }) {
     let retryTimeout: ReturnType<typeof setTimeout>;
     let cancelled = false;
 
-    async function connect() {
+    function connect() {
       if (cancelled) return;
 
-      const token = await getToken();
-      if (!token || cancelled) return;
-
-      const url = `${API_BASE_URL}/sync/stream?token=${encodeURIComponent(token)}`;
-      eventSource = new EventSource(url);
+      eventSource = new EventSource("/api/sync/stream");
 
       eventSource.addEventListener("connected", (e) => {
         setIsConnected(true);
+        // Reset new-email notifications on reconnect so stale counts don't persist
+        setNewEmailCount(0);
+        setNewEmails([]);
         try {
           const data = JSON.parse(e.data);
           setUnreadCount(data.unread_count ?? 0);
@@ -142,7 +138,7 @@ export function EmailSyncProvider({ children }: { children: React.ReactNode }) {
       eventSource?.close();
       setIsConnected(false);
     };
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn]);
 
   return (
     <EmailSyncContext.Provider

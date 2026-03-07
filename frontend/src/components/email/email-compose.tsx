@@ -5,8 +5,9 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { Paperclip, X, FileText, Image, Film, Music, Archive, File, Save } from "lucide-react";
+import { Paperclip, X, FileText, Image, Film, Music, Archive, File, Save, Sparkles } from "lucide-react";
 import type { ComposeData, ComposeMode, Draft } from "@/types/email";
+import { useComposeAssist } from "@/hooks/use-compose-assist";
 
 export const COMPOSE_STORAGE_KEY = "bertram_compose";
 
@@ -71,11 +72,18 @@ function FilePreview({ file }: { file: File }) {
   );
 }
 
-export function EmailCompose() {
+interface EmailComposeProps {
+  embedded?: boolean;
+  initialData?: ComposeData;
+  onClose?: () => void;
+  onSent?: () => void;
+}
+
+export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailComposeProps = {}) {
   const { getToken } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const draftParam = searchParams.get("draft");
+  const draftParam = embedded ? null : searchParams.get("draft");
 
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
@@ -91,20 +99,46 @@ export function EmailCompose() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [draftId, setDraftId] = useState<string | undefined>(undefined);
+  const draftIdRef = useRef<string | undefined>(undefined);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(false);
   const hasContentRef = useRef(false);
+
+  const [showAiAssist, setShowAiAssist] = useState(false);
+  const [aiInstructions, setAiInstructions] = useState("");
+  const { draftBody: aiDraftBody, isLoading: aiLoading, error: aiError, execute: runAiAssist } = useComposeAssist();
 
   // Track whether the form has meaningful content worth auto-saving
   useEffect(() => {
     hasContentRef.current = !!(to || cc || subject || body);
   }, [to, cc, subject, body]);
 
+  // Apply AI-generated body
+  useEffect(() => {
+    if (aiDraftBody) {
+      setBody(aiDraftBody);
+      setShowAiAssist(false);
+      setAiInstructions("");
+    }
+  }, [aiDraftBody]);
+
   // Load draft from API or sessionStorage on mount
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
+
+    if (embedded && initialData) {
+      setTo(initialData.to || "");
+      setCc(initialData.cc || "");
+      setSubject(initialData.subject || "");
+      setBody(initialData.body || "");
+      setMode(initialData.mode || "new");
+      setThreadId(initialData.thread_id);
+      setInReplyTo(initialData.in_reply_to);
+      setReferences(initialData.references);
+      return;
+    }
 
     if (draftParam) {
       // Load existing draft from API
@@ -120,6 +154,7 @@ export function EmailCompose() {
           setThreadId(draft.thread_id ?? undefined);
           setInReplyTo(draft.in_reply_to ?? undefined);
           setReferences(draft.references ?? undefined);
+          draftIdRef.current = draft.id;
           setDraftId(draft.id);
         } catch {
           setStatus({ kind: "error", message: "Failed to load draft" });
@@ -146,7 +181,7 @@ export function EmailCompose() {
     } catch {
       // ignore malformed data
     }
-  }, [draftParam, getToken]);
+  }, [draftParam, getToken, embedded, initialData]);
 
   const parseEmails = (value: string) =>
     value
@@ -171,21 +206,22 @@ export function EmailCompose() {
         references: references ?? null,
       };
 
-      if (draftId) {
-        await api.put(`/drafts/${draftId}`, draftData);
+      if (draftIdRef.current) {
+        await api.put(`/drafts/${draftIdRef.current}`, draftData);
       } else {
         const created = await api.post<Draft>("/drafts", draftData);
+        draftIdRef.current = created.id;
         setDraftId(created.id);
         // Update URL without reload so future saves update instead of creating new
-        window.history.replaceState(null, "", `/compose?draft=${created.id}`);
+        if (!embedded) {
+          window.history.replaceState(null, "", `/compose?draft=${created.id}`);
+        }
       }
       setStatus({ kind: "saved" });
-    } catch {
-      // Silent fail for auto-save; manual save shows error
     } finally {
       setIsSavingDraft(false);
     }
-  }, [getToken, to, cc, subject, body, mode, threadId, inReplyTo, references, draftId]);
+  }, [getToken, to, cc, subject, body, mode, threadId, inReplyTo, references, embedded]);
 
   // Auto-save on content change (debounced)
   useEffect(() => {
@@ -197,7 +233,9 @@ export function EmailCompose() {
       clearTimeout(autoSaveTimerRef.current);
     }
     autoSaveTimerRef.current = setTimeout(() => {
-      saveDraft();
+      saveDraft().catch(() => {
+        // Silent fail for auto-save
+      });
     }, AUTO_SAVE_DELAY);
 
     return () => {
@@ -264,9 +302,9 @@ export function EmailCompose() {
       await api.postForm("/emails/send", formData);
 
       // Delete the draft after successful send
-      if (draftId) {
+      if (draftIdRef.current) {
         try {
-          await api.delete(`/drafts/${draftId}`);
+          await api.delete(`/drafts/${draftIdRef.current}`);
         } catch {
           // non-critical
         }
@@ -286,8 +324,13 @@ export function EmailCompose() {
       setInReplyTo(undefined);
       setReferences(undefined);
       setAttachments([]);
+      draftIdRef.current = undefined;
       setDraftId(undefined);
-      setStatus({ kind: "success" });
+      if (embedded && onSent) {
+        onSent();
+      } else {
+        setStatus({ kind: "success" });
+      }
     } catch (err) {
       setStatus({
         kind: "error",
@@ -299,7 +342,11 @@ export function EmailCompose() {
   };
 
   const handleDiscard = () => {
-    router.back();
+    if (embedded && onClose) {
+      onClose();
+    } else {
+      router.back();
+    }
   };
 
   const inputClass =
@@ -307,6 +354,18 @@ export function EmailCompose() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {embedded && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{mode === "new" ? "New email" : MODE_LABELS[mode]}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
       {mode !== "new" && (
         <div className="flex items-center gap-2">
           <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -315,7 +374,7 @@ export function EmailCompose() {
         </div>
       )}
       <div>
-        <label htmlFor="to" className="mb-1 block text-sm font-medium">
+        <label htmlFor="to" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           To
         </label>
         <input
@@ -329,7 +388,7 @@ export function EmailCompose() {
         />
       </div>
       <div>
-        <label htmlFor="cc" className="mb-1 block text-sm font-medium">
+        <label htmlFor="cc" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           CC
         </label>
         <input
@@ -342,7 +401,7 @@ export function EmailCompose() {
         />
       </div>
       <div>
-        <label htmlFor="subject" className="mb-1 block text-sm font-medium">
+        <label htmlFor="subject" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Subject
         </label>
         <input
@@ -355,7 +414,7 @@ export function EmailCompose() {
         />
       </div>
       <div>
-        <label htmlFor="body" className="mb-1 block text-sm font-medium">
+        <label htmlFor="body" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Body
         </label>
         <textarea
@@ -366,6 +425,67 @@ export function EmailCompose() {
           placeholder="Write your message..."
         />
       </div>
+      {/* AI Assist */}
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => setShowAiAssist((v) => !v)}
+          disabled={isSubmitting || aiLoading}
+          className="inline-flex w-fit items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          <Sparkles className="h-4 w-4 text-paprika" />
+          AI Assist
+        </button>
+        {showAiAssist && (
+          <div className="flex flex-col gap-2 rounded-md border border-input bg-accent/30 p-3">
+            <input
+              type="text"
+              value={aiInstructions}
+              onChange={(e) => setAiInstructions(e.target.value)}
+              className={inputClass}
+              placeholder="e.g., make it more formal, add a call to action..."
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() =>
+                  runAiAssist({
+                    subject,
+                    body,
+                    instructions: aiInstructions,
+                    attachments,
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-md bg-paprika px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-paprika/90 disabled:opacity-50"
+              >
+                {aiLoading ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAiAssist(false);
+                  setAiInstructions("");
+                }}
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+              >
+                Cancel
+              </button>
+            </div>
+            {aiError && (
+              <p className="text-sm text-destructive">{aiError.message}</p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Attachments */}
       <div>
         <input

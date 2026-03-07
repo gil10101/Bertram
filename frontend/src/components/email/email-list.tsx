@@ -32,9 +32,15 @@ interface EmailListProps {
   isLoading: boolean;
   isSearch?: boolean;
   threadCounts?: Map<string, number>;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (emailId: string) => void;
+  activeEmailId?: string;
+  activeThreadId?: string;
+  onSelectEmail?: (email: Email) => void;
 }
 
-export function EmailList({ emails, isLoading, isSearch = false, threadCounts }: EmailListProps) {
+export function EmailList({ emails, isLoading, isSearch = false, threadCounts, selectMode, selectedIds, onToggleSelect, activeEmailId, activeThreadId, onSelectEmail }: EmailListProps) {
   if (isLoading) return <LoadingState />;
   if (emails.length === 0) return <EmptyState isSearch={isSearch} />;
 
@@ -45,6 +51,15 @@ export function EmailList({ emails, isLoading, isSearch = false, threadCounts }:
           key={email.id}
           email={email}
           threadMessageCount={email.thread_id ? threadCounts?.get(email.thread_id) : undefined}
+          selectMode={selectMode}
+          isSelected={selectedIds?.has(email.id) ?? false}
+          onToggleSelect={onToggleSelect}
+          isActive={
+            email.thread_id
+              ? activeThreadId === email.thread_id
+              : activeEmailId === email.id
+          }
+          onSelect={onSelectEmail}
         />
       ))}
     </div>

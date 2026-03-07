@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAiSummary } from "@/hooks/use-ai-action";
+import { ProgressiveText } from "./progressive-text";
 import { cn } from "@/lib/utils";
 
 interface AiSummaryProps {
@@ -10,7 +11,7 @@ interface AiSummaryProps {
 }
 
 export function AiSummary({ emailId, provider }: AiSummaryProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const { data, isLoading, error, execute } = useAiSummary(emailId, provider);
 
   const handleSummarize = () => {
@@ -32,7 +33,7 @@ export function AiSummary({ emailId, provider }: AiSummaryProps) {
         <button
           type="button"
           onClick={handleSummarize}
-          className="rounded px-2 py-1 text-xs font-medium hover:bg-accent"
+          className="rounded px-2 py-1 text-xs font-medium text-paprika hover:bg-paprika/10"
         >
           Summarize
         </button>
@@ -42,11 +43,17 @@ export function AiSummary({ emailId, provider }: AiSummaryProps) {
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              Summarizing...
+              <span className="animate-text-shimmer bg-[length:250%_100%] bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(var(--muted-foreground))_35%,hsl(var(--primary))_50%,hsl(var(--muted-foreground))_65%)]">
+                Summarizing...
+              </span>
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error.message}</p>}
-          {data && !isLoading && <p className="text-sm">{data}</p>}
+          {data && !isLoading && (
+            <p className="text-sm">
+              <ProgressiveText text={data} />
+            </p>
+          )}
           {!data && !isLoading && !error && (
             <p className="text-sm text-muted-foreground">Click Summarize to generate</p>
           )}

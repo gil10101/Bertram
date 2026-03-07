@@ -46,7 +46,8 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOUR_START = 6;
 const HOUR_END = 22;
 const TOTAL_MINUTES = (HOUR_END - HOUR_START) * 60;
-const PX_PER_MINUTE = 1.2;
+const ROW_HEIGHT = 44;
+const PX_PER_MINUTE = ROW_HEIGHT / 60;
 
 function getTimeSlots() {
   const slots: string[] = [];
@@ -104,8 +105,8 @@ function WeekView({
         {timeSlots.map((label, i) => (
           <div
             key={label}
-            className="flex h-[72px] items-start justify-end pr-2 pt-0"
-            style={i === 0 ? { marginTop: 0 } : undefined}
+            className="flex items-start justify-end pr-2"
+            style={{ height: `${ROW_HEIGHT}px`, ...(i === 0 ? { marginTop: 0 } : {}) }}
           >
             <span className="relative -top-2 text-[10px] text-muted-foreground">{label}</span>
           </div>
@@ -128,7 +129,7 @@ function WeekView({
             >
               {/* Hour grid lines */}
               {timeSlots.map((_, i) => (
-                <div key={i} className="h-[72px] border-b border-border/40" />
+                <div key={i} className="border-b border-border/40" style={{ height: `${ROW_HEIGHT}px` }} />
               ))}
 
               {/* Meeting blocks */}
@@ -138,7 +139,7 @@ function WeekView({
                 const startMinutes = start.getHours() * 60 + start.getMinutes() - HOUR_START * 60;
                 const endMinutes = end.getHours() * 60 + end.getMinutes() - HOUR_START * 60;
                 const topPx = Math.max(0, startMinutes * PX_PER_MINUTE);
-                const heightPx = Math.max(24, (endMinutes - startMinutes) * PX_PER_MINUTE);
+                const heightPx = Math.max(18, (endMinutes - startMinutes) * PX_PER_MINUTE);
                 const providers = getProviders(m);
 
                 return (
@@ -158,12 +159,12 @@ function WeekView({
                         />
                       ))}
                     </div>
-                    <div className="min-w-0 flex-1 px-1.5 py-1">
+                    <div className="min-w-0 flex-1 px-1.5 py-0.5">
                       <p className="truncate text-[11px] font-semibold leading-tight">{m.title}</p>
                       <p className="truncate text-[10px] leading-tight opacity-70">
                         {formatTime(start)} – {formatTime(end)}
                       </p>
-                      {heightPx > 50 && m.location && (
+                      {heightPx > 40 && m.location && (
                         <p className="mt-0.5 truncate text-[9px] leading-tight opacity-60">
                           {m.location}
                         </p>
@@ -356,7 +357,7 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <h3 className="text-sm font-semibold">{headerLabel}</h3>
+          <h3 className="text-sm font-semibold tracking-tight">{headerLabel}</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -430,7 +431,7 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
       )}
 
       {/* Calendar body */}
-      <div className={cn(view === "week" && "max-h-[600px] overflow-y-auto")}>
+      <div className={cn("pr-4", view === "week" && "max-h-[600px] overflow-y-auto")}>
         {view === "week" ? (
           <WeekView meetings={meetings} weekStart={weekStart} onMeetingClick={onMeetingClick} />
         ) : (

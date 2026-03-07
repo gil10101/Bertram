@@ -8,5 +8,9 @@ export default function ThreadDetailPage() {
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider") ?? undefined;
 
-  return <ThreadDetail threadId={id} provider={provider} />;
+  return (
+    <div className="h-full overflow-y-auto p-4 md:p-6">
+      <ThreadDetail threadId={id} provider={provider} />
+    </div>
+  );
 }

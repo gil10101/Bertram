@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AiSummary } from "@/components/ai/ai-summary";
 import { AiDraft } from "@/components/ai/ai-draft";
+import { AiChat } from "@/components/ai/ai-chat";
 import { storeComposeData } from "./email-compose";
 import { cn } from "@/lib/utils";
 import type { ComposeMode, EmailAttachment } from "@/types/email";
-import { Reply, ReplyAll, Forward, Paperclip, Download, FileText, Image, Film, Music, Archive, File, Eye, X } from "lucide-react";
+import { Reply, ReplyAll, Forward, Paperclip, Download, FileText, Image, Film, Music, Archive as ArchiveIcon, Trash2, File, Eye, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,9 @@ import {
 interface EmailDetailProps {
   emailId: string | string[] | undefined;
   provider?: string;
+  embedded?: boolean;
+  onClose?: () => void;
+  onActionComplete?: () => void;
 }
 
 interface EmailAddress {
@@ -179,7 +183,7 @@ function AttachmentIcon({ contentType }: { contentType: string }) {
   if (contentType === "application/pdf" || contentType.includes("document") || contentType.includes("text"))
     return <FileText className={cls} />;
   if (contentType.includes("zip") || contentType.includes("compressed") || contentType.includes("archive"))
-    return <Archive className={cls} />;
+    return <ArchiveIcon className={cls} />;
   return <File className={cls} />;
 }
 
@@ -274,7 +278,7 @@ function TextPreview({ blobUrl }: { blobUrl: string }) {
   );
 }
 
-export function EmailDetail({ emailId, provider }: EmailDetailProps) {
+export function EmailDetail({ emailId, provider, embedded, onClose, onActionComplete }: EmailDetailProps) {
   const { getToken } = useAuth();
   const { user } = useUser();
   const router = useRouter();
@@ -283,10 +287,19 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const [showDraft, setShowDraft] = useState(false);
   const [previewAtt, setPreviewAtt] = useState<{ attachment: EmailAttachment; blobUrl: string } | null>(null);
+  const [isActioning, setIsActioning] = useState(false);
   const id = Array.isArray(emailId) ? emailId[0] : emailId;
 
   const currentUserEmail =
     user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
+
+  useEffect(() => {
+    return () => {
+      if (previewAtt?.blobUrl) {
+        URL.revokeObjectURL(previewAtt.blobUrl);
+      }
+    };
+  }, [previewAtt]);
 
   useEffect(() => {
     if (!id) return;
@@ -308,6 +321,23 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
       })
       .finally(() => setIsLoading(false));
   }, [id, getToken, provider]);
+
+  const handleAction = async (data: Record<string, unknown>) => {
+    if (!id) return;
+    setIsActioning(true);
+    try {
+      const api = createApiClient(getToken);
+      const qs = provider ? `?provider=${provider}` : "";
+      await api.patch(`/emails/${id}${qs}`, data);
+      if (embedded && onActionComplete) {
+        onActionComplete();
+      } else {
+        router.push("/inbox");
+      }
+    } catch {
+      setIsActioning(false);
+    }
+  };
 
   const navigateToCompose = (mode: ComposeMode) => {
     if (!email) return;
@@ -363,16 +393,14 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
     return (
       <div className="py-8 text-center">
         <p className="text-muted-foreground">{error ?? "Email not found"}</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push("/inbox")}>
-          Back to Inbox
+        <Button variant="outline" size="sm" className="mt-4" onClick={embedded ? onClose : () => router.push("/inbox")}>
+          {embedded ? "Close" : "Back to Inbox"}
         </Button>
       </div>
     );
   }
 
-  const visibleLabels = email.labels.filter(
-    (l) => !["UNREAD", "STARRED", "INBOX"].includes(l)
-  );
+  const visibleLabels = email.labels.filter(l => !SYSTEM_LABELS.has(l));
 
   return (
     <div className="flex flex-col gap-6">
@@ -380,7 +408,7 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold md:text-xl">
+            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
               {email.is_starred && <span className="mr-1 text-yellow-500">&#9733;</span>}
               {email.subject || "(No subject)"}
             </h1>
@@ -389,33 +417,61 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.push("/inbox")}>
-          Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleAction({ archive: true })}
+            disabled={isActioning}
+            className="gap-1.5"
+          >
+            <ArchiveIcon className="h-3.5 w-3.5" />
+            Archive
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleAction({ trash: true })}
+            disabled={isActioning}
+            className="gap-1.5 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </Button>
+          {embedded ? (
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => router.push("/inbox")}>
+              Back
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Metadata */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-1.5 text-sm">
           <div className="flex gap-2">
-            <span className="w-16 shrink-0 font-medium text-muted-foreground">From</span>
+            <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">From</span>
             <span>{formatAddress(email.sender)}</span>
           </div>
           {email.recipients.length > 0 && (
             <div className="flex gap-2">
-              <span className="w-16 shrink-0 font-medium text-muted-foreground">To</span>
+              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">To</span>
               <span>{email.recipients.map(formatAddress).join(", ")}</span>
             </div>
           )}
           {email.cc_recipients && email.cc_recipients.length > 0 && (
             <div className="flex gap-2">
-              <span className="w-16 shrink-0 font-medium text-muted-foreground">CC</span>
+              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">CC</span>
               <span>{email.cc_recipients.map(formatAddress).join(", ")}</span>
             </div>
           )}
           {email.attachments && email.attachments.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="w-16 shrink-0 font-medium text-muted-foreground">
+              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 <Paperclip className="inline h-3.5 w-3.5" />
               </span>
               <span>
@@ -426,12 +482,12 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
             </div>
           )}
           <div className="flex gap-2">
-            <span className="w-16 shrink-0 font-medium text-muted-foreground">Date</span>
+            <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</span>
             <span>{formatDate(email.received_at)}</span>
           </div>
           {visibleLabels.length > 0 && (
             <div className="flex gap-2">
-              <span className="w-16 shrink-0 font-medium text-muted-foreground">Labels</span>
+              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">Labels</span>
               <div className="flex flex-wrap gap-1">
                 {visibleLabels.map((l) => (
                   <Badge key={l} variant="outline" className="text-xs">
@@ -443,6 +499,13 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
           )}
         </div>
       </div>
+
+      {/* AI Tools — at top for quick access */}
+      {id && (
+        <>
+          <AiSummary emailId={id} provider={provider} />
+        </>
+      )}
 
       {/* Reply / Reply All / Forward */}
       <div className="flex flex-wrap items-center gap-2">
@@ -582,14 +645,14 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
             document.body.appendChild(a);
             a.click();
             a.remove();
+            URL.revokeObjectURL(previewAtt.blobUrl);
           }}
         />
       )}
 
-      {/* AI Tools */}
+      {/* AI Draft & Chat */}
       {id && (
         <>
-          <AiSummary emailId={id} provider={provider} />
           <div>
             <Button
               variant="outline"
@@ -600,39 +663,42 @@ export function EmailDetail({ emailId, provider }: EmailDetailProps) {
             </Button>
             {showDraft && <AiDraft emailId={id} provider={provider} />}
           </div>
+          <AiChat emailId={id} provider={provider} />
         </>
       )}
 
-      {/* Bottom reply bar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => navigateToCompose("reply")}
-          className="gap-1.5"
-        >
-          <Reply className="h-3.5 w-3.5" />
-          Reply
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigateToCompose("replyAll")}
-          className="gap-1.5"
-        >
-          <ReplyAll className="h-3.5 w-3.5" />
-          Reply All
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigateToCompose("forward")}
-          className="gap-1.5"
-        >
-          <Forward className="h-3.5 w-3.5" />
-          Forward
-        </Button>
-      </div>
+      {/* Bottom reply bar — hidden when embedded to save space */}
+      {!embedded && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => navigateToCompose("reply")}
+            className="gap-1.5"
+          >
+            <Reply className="h-3.5 w-3.5" />
+            Reply
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigateToCompose("replyAll")}
+            className="gap-1.5"
+          >
+            <ReplyAll className="h-3.5 w-3.5" />
+            Reply All
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigateToCompose("forward")}
+            className="gap-1.5"
+          >
+            <Forward className="h-3.5 w-3.5" />
+            Forward
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
