@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -44,12 +45,12 @@ const config: Config = {
         },
         /* Raw palette for direct use */
         floral: {
-          DEFAULT: "#f8f9fa",
+          DEFAULT: "#FFFCF2",
           50: "#fffefc",
           100: "#fffef9",
           200: "#fffdf6",
           300: "#fffcf3",
-          400: "#f8f9fa",
+          400: "#FFFCF2",
           500: "#ffe48d",
           600: "#ffcd2a",
           700: "#c69800",
@@ -108,6 +109,15 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "text-shimmer": {
+          "0%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+      },
+      animation: {
+        "text-shimmer": "text-shimmer 3s ease-in-out infinite",
       },
     },
   },
