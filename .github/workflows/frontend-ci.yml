@@ -15,6 +15,9 @@ jobs:
       run:
         working-directory: frontend
 
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
     steps:
       - uses: actions/checkout@v4
 
