@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -220,7 +221,7 @@ class OutlookProvider(EmailProvider):
         )
         return data.get("unreadItemCount", 0)
 
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
         skip = (page - 1) * per_page
         params: dict[str, str] = {
             "$top": str(per_page),
@@ -231,7 +232,8 @@ class OutlookProvider(EmailProvider):
         if q:
             params["$search"] = f'"{q}"'
             params.pop("$orderby")
-        data = await self._graph_get("/me/mailFolders/inbox/messages", params=params)
+        graph_folder = "deleteditems" if folder == "trash" else folder
+        data = await self._graph_get(f"/me/mailFolders/{graph_folder}/messages", params=params)
         messages = data.get("value", [])
         return [self._format_message(m) for m in messages]
 
@@ -306,6 +308,16 @@ class OutlookProvider(EmailProvider):
             }
         if updates:
             await self._graph_patch(f"/me/messages/{email_id}", updates)
+        if data.get("archive") is True:
+            await self._graph_post(
+                f"/me/messages/{email_id}/move",
+                {"destinationId": "archive"},
+            )
+        if data.get("trash") is True:
+            await self._graph_post(
+                f"/me/messages/{email_id}/move",
+                {"destinationId": "deleteditems"},
+            )
         return {"status": "updated"}
 
     async def list_threads(self, page: int = 1, per_page: int = 20) -> list[dict]:
@@ -340,6 +352,9 @@ class OutlookProvider(EmailProvider):
         data: dict = {}
 
         # Try $filter first (works for most conversationIds)
+        # Reject suspicious characters to prevent OData injection
+        if not re.match(r"^[A-Za-z0-9+=/_\-. ]+$", thread_id):
+            return {"id": thread_id, "messages": []}
         safe_id = thread_id.replace("'", "''")
         try:
             data = await self._graph_get(

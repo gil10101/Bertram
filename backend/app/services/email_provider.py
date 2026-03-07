@@ -23,7 +23,7 @@ class EmailProvider(ABC):
         return sum(1 for e in emails if not e.get("is_read", True))
 
     @abstractmethod
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
         ...
 
     @abstractmethod

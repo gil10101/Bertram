@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 import mimetypes
@@ -175,32 +176,71 @@ class GmailProvider(EmailProvider):
         )
         return result.get("resultSizeEstimate", 0)
 
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
         service = await self._get_service()
         if not service:
             return []
 
-        gmail_q = f"in:inbox {q}".strip() if q else "in:inbox"
-        result = (
-            service.users()
-            .messages()
-            .list(userId="me", maxResults=per_page, q=gmail_q)
-            .execute()
-        )
-        message_ids = result.get("messages", [])
+        gmail_q = f"in:{folder} {q}".strip() if q else f"in:{folder}"
+
+        # Gmail uses pageToken-based pagination. Walk through pages to reach
+        # the requested offset, fetching per_page ids at a time.
+        def _list_page():
+            page_token = None
+            for current_page in range(1, page + 1):
+                result = (
+                    service.users()
+                    .messages()
+                    .list(
+                        userId="me",
+                        maxResults=per_page,
+                        q=gmail_q,
+                        **({"pageToken": page_token} if page_token else {}),
+                    )
+                    .execute()
+                )
+                if current_page == page:
+                    ids = result.get("messages", [])
+                page_token = result.get("nextPageToken")
+                if not page_token:
+                    if current_page < page:
+                        return []
+                    break
+            return ids
+
+        message_ids = await asyncio.to_thread(_list_page)
+
         if not message_ids:
             return []
 
-        emails = []
-        for msg_ref in message_ids:
-            msg = (
-                service.users()
-                .messages()
-                .get(userId="me", id=msg_ref["id"], format="full")
-                .execute()
-            )
-            emails.append(self._format_message(msg))
-        return emails
+        # Batch-fetch all messages in a single HTTP request using metadata format
+        # (avoids N sequential API calls and skips downloading full bodies)
+        emails: list[dict | None] = [None] * len(message_ids)
+
+        def _batch_fetch():
+            batch = service.new_batch_http_request()
+
+            def make_callback(idx):
+                def callback(request_id, response, exception):
+                    if exception is None:
+                        emails[idx] = response
+                return callback
+
+            for i, msg_ref in enumerate(message_ids):
+                batch.add(
+                    service.users().messages().get(
+                        userId="me",
+                        id=msg_ref["id"],
+                        format="metadata",
+                        metadataHeaders=["From", "Subject"],
+                    ),
+                    callback=make_callback(i),
+                )
+            batch.execute()
+
+        await asyncio.to_thread(_batch_fetch)
+
+        return [self._format_message(msg) for msg in emails if msg is not None]
 
     async def get_email(self, email_id: str) -> dict:
         service = await self._get_service()
@@ -293,6 +333,13 @@ class GmailProvider(EmailProvider):
             add_labels.append("STARRED")
         elif data.get("is_starred") is False:
             remove_labels.append("STARRED")
+        if data.get("archive") is True:
+            remove_labels.append("INBOX")
+        elif data.get("archive") is False:
+            add_labels.append("INBOX")
+        if data.get("trash") is True:
+            add_labels.append("TRASH")
+            remove_labels.append("INBOX")
         if add_labels or remove_labels:
             service.users().messages().modify(
                 userId="me",

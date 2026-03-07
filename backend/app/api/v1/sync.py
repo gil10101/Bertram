@@ -67,9 +67,9 @@ async def _event_generator(user_id: str, db: object) -> AsyncGenerator[str, None
                 yield f"event: connected\ndata: {data}\n\n"
             else:
                 new_ids = current_ids - known_ids
+                known_ids = current_ids
                 if new_ids:
                     new_emails = [e for e in recent if e["id"] in new_ids]
-                    known_ids = current_ids
                     data = json.dumps({
                         "type": "new_emails",
                         "count": len(new_emails),

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class TimeSlot(BaseModel):
@@ -12,7 +12,7 @@ class MeetingCreate(BaseModel):
     title: str
     start_time: datetime
     end_time: datetime
-    attendees: list[str] = []
+    attendees: list[EmailStr] = []
     description: str = ""
     location: str = ""
 

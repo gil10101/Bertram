@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from postgrest.exceptions import APIError
 
-from app.api.deps import CurrentUser, DB
+from app.api.deps import PROVIDER_REGISTRY, CurrentUser, DB
 from app.auth.oauth import OAuthService
 from app.config import settings
 
-FRONTEND_URL = settings.cors_origins[0] if settings.cors_origins else "http://localhost:3000"
+FRONTEND_URL = settings.frontend_url
 
 router = APIRouter()
 
@@ -51,5 +51,7 @@ async def outlook_callback(request: Request, code: str, state: str, db: DB):
 
 @router.post("/disconnect/{provider}")
 async def disconnect_provider(provider: str, user: CurrentUser, db: DB):
+    if provider not in PROVIDER_REGISTRY:
+        raise HTTPException(status_code=400, detail="Unknown provider")
     await OAuthService.disconnect(user["sub"], provider, db)
     return {"status": "disconnected"}

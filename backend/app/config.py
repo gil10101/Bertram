@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     # App
     app_env: str = "development"
     cors_origins: list[str] = ["http://localhost:3000"]
+    frontend_url: str = "http://localhost:3000"
 
     # Supabase
     supabase_url: str = ""

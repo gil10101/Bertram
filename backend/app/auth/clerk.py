@@ -1,19 +1,28 @@
+import logging
+
 import httpx
 import jwt
 from fastapi import HTTPException, status
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
+import time
+
 _jwks_cache: dict | None = None
+_jwks_fetched_at: float = 0
+_JWKS_TTL = 3600  # Re-fetch JWKS every hour
 
 
 async def _get_jwks() -> dict:
-    global _jwks_cache
-    if _jwks_cache is None:
+    global _jwks_cache, _jwks_fetched_at
+    if _jwks_cache is None or (time.monotonic() - _jwks_fetched_at) > _JWKS_TTL:
         async with httpx.AsyncClient() as client:
             resp = await client.get(settings.clerk_jwks_url)
             resp.raise_for_status()
             _jwks_cache = resp.json()
+            _jwks_fetched_at = time.monotonic()
     return _jwks_cache
 
 
@@ -41,7 +50,8 @@ async def verify_clerk_token(token: str) -> dict:
         return payload
 
     except (jwt.PyJWTError, ValueError, httpx.HTTPError) as exc:
+        logger.warning("JWT verification failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {exc}",
+            detail="Invalid or expired token",
         )

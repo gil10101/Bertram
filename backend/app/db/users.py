@@ -8,17 +8,10 @@ class UserRepository:
     async def get_or_create(self, clerk_id: str, email: str) -> dict:
         result = (
             self.db.table("users")
-            .select("*")
-            .eq("clerk_id", clerk_id)
-            .single()
+            .upsert({"clerk_id": clerk_id, "email": email}, on_conflict="clerk_id")
             .execute()
         )
-        if result.data:
-            return result.data
-
-        new_user = {"clerk_id": clerk_id, "email": email}
-        result = self.db.table("users").insert(new_user).execute()
-        return result.data[0]
+        return result.data[0] if result.data else {}
 
     async def update_preferences(self, user_id: str, preferences: dict) -> dict:
         result = (

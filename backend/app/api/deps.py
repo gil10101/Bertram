@@ -1,10 +1,14 @@
+import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from postgrest.exceptions import APIError
 
+logger = logging.getLogger(__name__)
+
 from app.auth.clerk import verify_clerk_token
 from app.db.client import get_supabase
+from app.db.users import UserRepository
 from app.services.aggregate_provider import AggregateEmailProvider
 from app.services.calendar_provider import CalendarProvider
 from app.services.calendar_service import CalendarService
@@ -39,7 +43,18 @@ async def get_current_user(request: Request) -> dict:
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
-    return await verify_clerk_token(token)
+    payload = await verify_clerk_token(token)
+
+    # Upsert user into Supabase on each authenticated request
+    try:
+        db = get_supabase()
+        email = payload.get("email", "") or payload.get("primary_email", "")
+        repo = UserRepository(db)
+        await repo.get_or_create(clerk_id=payload["sub"], email=email)
+    except Exception:
+        logger.warning("User upsert failed for %s", payload.get("sub"), exc_info=True)
+
+    return payload
 
 
 async def get_db():

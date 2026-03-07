@@ -10,7 +10,17 @@ logger = logging.getLogger("bertrum")
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "%s %s 500 %.1fms (unhandled)",
+                request.method,
+                request.url.path,
+                elapsed_ms,
+            )
+            raise
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         logger.info(

@@ -1,7 +1,10 @@
 import json
+import os
 
 from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import Response
+
+from fastapi import HTTPException
 
 from app.api.deps import CurrentUser, Provider
 
@@ -17,8 +20,9 @@ async def list_emails(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     q: str = Query("", max_length=500),
+    folder: str = Query("inbox", pattern=r"^[a-zA-Z]+$", max_length=20),
 ):
-    return await provider.list_emails(page=page, per_page=per_page, q=q)
+    return await provider.list_emails(page=page, per_page=per_page, q=q, folder=folder)
 
 
 @router.get("/{email_id}")
@@ -34,10 +38,11 @@ async def download_attachment(
     provider: Provider,
 ):
     att = await provider.get_attachment(email_id, attachment_id)
+    safe_name = os.path.basename(att.filename).replace('"', "_")
     return Response(
         content=att.data,
         media_type=att.content_type,
-        headers={"Content-Disposition": f'inline; filename="{att.filename}"'},
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
     )
 
 
@@ -54,6 +59,11 @@ async def send_email(
         attachments = []
         for f in files:
             file_bytes = await f.read()
+            if len(file_bytes) > MAX_ATTACHMENT_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Attachment '{f.filename}' exceeds 25 MB limit",
+                )
             attachments.append((
                 f.filename or "attachment",
                 f.content_type or "application/octet-stream",
