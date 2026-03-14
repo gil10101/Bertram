@@ -50,8 +50,8 @@ async def verify_clerk_token(token: str) -> dict:
         return payload
 
     except (jwt.PyJWTError, ValueError, httpx.HTTPError) as exc:
-        logger.warning("JWT verification failed: %s", exc)
+        logger.warning("JWT verification failed (%s): %s", type(exc).__name__, exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail=f"Invalid or expired token: {type(exc).__name__}: {exc}",
         )
