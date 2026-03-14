@@ -103,7 +103,7 @@ async def _event_generator(user_id: str, db: object) -> AsyncGenerator[str, None
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': 'Poll failed'})}\n\n"
 
         # Back off when errors accumulate (30s, 60s, 120s, max 5min)
-        backoff = min(POLL_INTERVAL * (2 ** consecutive_errors), 300) if consecutive_errors else POLL_INTERVAL
+        backoff = min(POLL_INTERVAL * (2 ** (consecutive_errors - 1)), 300) if consecutive_errors else POLL_INTERVAL
         await asyncio.sleep(backoff)
 
     # Session duration exceeded — hint client to reconnect

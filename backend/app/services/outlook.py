@@ -118,6 +118,7 @@ class OutlookProvider(EmailProvider):
         path: str,
         params: dict | None = None,
         json_body: dict | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         """Execute a Graph API request with 401 re-auth and 429 backoff retry."""
         token = await self._get_access_token()
@@ -129,6 +130,8 @@ class OutlookProvider(EmailProvider):
         headers: dict[str, str] = {"Authorization": f"Bearer {token}"}
         if method in ("POST", "PATCH"):
             headers["Content-Type"] = "application/json"
+        if extra_headers:
+            headers.update(extra_headers)
 
         for attempt in range(MAX_RETRIES + 1):
             async with httpx.AsyncClient() as client:
@@ -240,7 +243,8 @@ class OutlookProvider(EmailProvider):
         if q:
             params["$search"] = f'"{q}"'
             params.pop("$orderby")
-        graph_folder = "deleteditems" if folder == "trash" else folder
+        folder_map = {"trash": "deleteditems", "sent": "sentitems", "spam": "junkemail"}
+        graph_folder = folder_map.get(folder.lower(), folder)
         data = await self._graph_get(f"/me/mailFolders/{graph_folder}/messages", params=params)
         messages = data.get("value", [])
         formatted = [self._format_message(m) for m in messages]
@@ -251,15 +255,19 @@ class OutlookProvider(EmailProvider):
             thread_counts: dict[str, int] = {}
 
             async def _fetch_conv_count(cid: str):
-                resp = await self._graph_get(
+                resp = await self._graph_request_with_retry(
+                    "GET",
                     "/me/messages",
                     params={
                         "$filter": f"conversationId eq '{cid}'",
                         "$count": "true",
                         "$top": "0",
                     },
+                    extra_headers={"ConsistencyLevel": "eventual"},
                 )
-                thread_counts[cid] = resp.get("@odata.count", 0)
+                resp.raise_for_status()
+                data = resp.json()
+                thread_counts[cid] = data.get("@odata.count", 0)
 
             await asyncio.gather(*[_fetch_conv_count(cid) for cid in conv_ids])
             for email in formatted:
