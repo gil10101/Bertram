@@ -54,7 +54,7 @@ export function Testimonial() {
       </div>
       <blockquote
         ref={quoteRef}
-        className="max-w-[50rem] text-[clamp(1.5rem,4.5vw,4rem)] italic leading-[1.2] tracking-[-0.02em] text-floral"
+        className="max-w-[50rem] border-l-2 border-paprika/40 pl-6 text-[clamp(1.5rem,4.5vw,4rem)] italic leading-[1.2] tracking-[-0.02em] text-floral md:pl-8"
       >
         {words.map((word, i) => (
           <span

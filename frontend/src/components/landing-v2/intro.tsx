@@ -55,7 +55,7 @@ export function Intro() {
         <Word>email</Word>
         <Word>should</Word>
         <Word>feel</Word>
-        <Word className="italic text-paprika">effortless</Word>
+        <Word className="font-serif italic text-paprika">effortless</Word>
         <Word>&#8212;</Word>
         <Word>not</Word>
         <Word>like</Word>
@@ -68,7 +68,7 @@ export function Intro() {
         <Word>message,</Word>
         <Word>drafts</Word>
         <Word>the</Word>
-        <Word className="italic text-paprika">replies,</Word>
+        <Word className="font-serif italic text-paprika">replies,</Word>
         <Word>and</Word>
         <Word>schedules</Word>
         <Word>the</Word>

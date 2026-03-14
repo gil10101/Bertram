@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { Inbox, FileText, Calendar, Settings, Trash2, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMobileSidebar } from "./mobile-sidebar-provider";
@@ -11,14 +11,15 @@ import { useUnreadCount } from "@/hooks/use-unread-count";
 
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
-  { href: "/drafts", label: "Drafts", icon: FileText },
-  { href: "/trash", label: "Trash", icon: Trash2 },
+  { href: "/inbox?view=drafts", label: "Drafts", icon: FileText },
+  { href: "/inbox?folder=TRASH", label: "Bin", icon: Trash2 },
   { href: "/meetings", label: "Meetings", icon: Calendar },
 ] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isOpen, close } = useMobileSidebar();
   const { openCompose } = useCompose();
   const { user } = useUser();
@@ -51,17 +52,21 @@ export function Sidebar() {
         )}
       >
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/inbox" className="flex min-w-0 items-center gap-3" onClick={close}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-              {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0)?.toUpperCase() || "B"}
-            </div>
+          <div className="flex min-w-0 items-center gap-3">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "h-8 w-8",
+                },
+              }}
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{user?.fullName || "Bertram"}</p>
               <p className="truncate text-xs text-muted-foreground">
                 {user?.emailAddresses?.[0]?.emailAddress || ""}
               </p>
             </div>
-          </Link>
+          </div>
           <button
             type="button"
             onClick={close}
@@ -85,8 +90,10 @@ export function Sidebar() {
 
         <nav className="flex flex-1 flex-col gap-1 p-4">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive =
-              pathname === href || pathname.startsWith(`${href}/`);
+            const [hrefPath, hrefQuery] = href.split("?");
+            const isActive = hrefQuery
+              ? pathname === hrefPath && new URLSearchParams(hrefQuery).get("view") === searchParams.get("view") && new URLSearchParams(hrefQuery).get("folder") === searchParams.get("folder")
+              : (pathname === href || pathname.startsWith(`${href}/`)) && !searchParams.get("view") && !searchParams.get("folder");
             return (
               <Link
                 key={href}

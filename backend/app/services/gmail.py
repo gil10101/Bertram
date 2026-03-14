@@ -36,12 +36,29 @@ def _parse_address(raw: str) -> dict:
 
 
 def _build_service(token_data: dict):
+    from datetime import datetime, timedelta
+
+    expiry = None
+    created = token_data.get("updated_at") or token_data.get("created_at")
+    expires_in = token_data.get("expires_in", 3600)
+    if created:
+        try:
+            if isinstance(created, str):
+                created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            else:
+                created_dt = created
+            # google-auth compares expiry with naive utcnow(), so strip tzinfo
+            expiry = (created_dt + timedelta(seconds=expires_in)).replace(tzinfo=None)
+        except (ValueError, TypeError):
+            pass
+
     creds = Credentials(
         token=token_data["access_token"],
         refresh_token=token_data.get("refresh_token"),
         token_uri=GMAIL_TOKEN_URL,
         client_id=settings.gmail_client_id,
         client_secret=settings.gmail_client_secret,
+        expiry=expiry,
     )
     return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
@@ -176,12 +193,14 @@ class GmailProvider(EmailProvider):
         )
         return result.get("resultSizeEstimate", 0)
 
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox", category: str = "") -> list[dict]:
         service = await self._get_service()
         if not service:
             return []
 
         gmail_q = f"in:{folder} {q}".strip() if q else f"in:{folder}"
+        if category:
+            gmail_q += f" category:{category}"
 
         # Gmail uses pageToken-based pagination. Walk through pages to reach
         # the requested offset, fetching per_page ids at a time.
@@ -240,7 +259,35 @@ class GmailProvider(EmailProvider):
 
         await asyncio.to_thread(_batch_fetch)
 
-        return [self._format_message(msg) for msg in emails if msg is not None]
+        # Batch-fetch thread metadata to get message counts per thread
+        thread_ids = list({msg["threadId"] for msg in emails if msg and msg.get("threadId")})
+        thread_counts: dict[str, int] = {}
+
+        if thread_ids:
+            def _batch_fetch_threads():
+                batch = service.new_batch_http_request()
+
+                def make_thread_callback(tid):
+                    def callback(request_id, response, exception):
+                        if exception is None:
+                            thread_counts[tid] = len(response.get("messages", []))
+                    return callback
+
+                for tid in thread_ids:
+                    batch.add(
+                        service.users().threads().get(userId="me", id=tid, format="minimal"),
+                        callback=make_thread_callback(tid),
+                    )
+                batch.execute()
+
+            await asyncio.to_thread(_batch_fetch_threads)
+
+        formatted = [self._format_message(msg) for msg in emails if msg is not None]
+        for email in formatted:
+            tid = email.get("thread_id")
+            if tid and tid in thread_counts:
+                email["thread_message_count"] = thread_counts[tid]
+        return formatted
 
     async def get_email(self, email_id: str) -> dict:
         service = await self._get_service()
@@ -294,7 +341,7 @@ class GmailProvider(EmailProvider):
 
         if attachments:
             message = MIMEMultipart()
-            message.attach(MIMEText(data.get("body", "")))
+            message.attach(MIMEText(data.get("body", ""), "html"))
             for filename, content_type, file_bytes in attachments:
                 maintype, subtype = content_type.split("/", 1) if "/" in content_type else ("application", "octet-stream")
                 part = MIMEBase(maintype, subtype)
@@ -303,7 +350,7 @@ class GmailProvider(EmailProvider):
                 part.add_header("Content-Disposition", "attachment", filename=filename)
                 message.attach(part)
         else:
-            message = MIMEText(data.get("body", ""))
+            message = MIMEText(data.get("body", ""), "html")
 
         message["to"] = ", ".join(data.get("to", []))
         message["subject"] = data.get("subject", "")
@@ -340,6 +387,10 @@ class GmailProvider(EmailProvider):
         if data.get("trash") is True:
             add_labels.append("TRASH")
             remove_labels.append("INBOX")
+        if data.get("add_labels"):
+            add_labels.extend(data["add_labels"])
+        if data.get("remove_labels"):
+            remove_labels.extend(data["remove_labels"])
         if add_labels or remove_labels:
             service.users().messages().modify(
                 userId="me",
@@ -393,6 +444,10 @@ class GmailProvider(EmailProvider):
             "messages": [self._format_message(m) for m in t.get("messages", [])],
         }
 
+    # System labels that cannot be added/removed via the modify endpoint
+    _NON_MODIFIABLE_LABELS = {"CHAT", "SENT", "DRAFT", "CATEGORY_FORUMS", "CATEGORY_UPDATES",
+                               "CATEGORY_PERSONAL", "CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL"}
+
     async def list_labels(self) -> list[dict]:
         service = await self._get_service()
         if not service:
@@ -401,6 +456,7 @@ class GmailProvider(EmailProvider):
         return [
             {"id": lb["id"], "name": lb["name"], "type": lb.get("type", "user")}
             for lb in result.get("labels", [])
+            if lb["id"] not in self._NON_MODIFIABLE_LABELS
         ]
 
     async def create_label(self, data: dict) -> dict:

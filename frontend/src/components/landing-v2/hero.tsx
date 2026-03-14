@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "@/lib/gsap";
+import { AnimatedBeam } from "./animated-beam";
+
+const heroBeamPaths = [
+  { id: "h1", from: "hn1", to: "hn3", delay: 0, duration: 6, gradient: ["#eb5e28", "#9333ea"] as [string, string] },
+  { id: "h2", from: "hn2", to: "hn4", delay: 2, duration: 7, gradient: ["#9333ea", "#eb5e28"] as [string, string] },
+  { id: "h3", from: "hn3", to: "hn5", delay: 1, duration: 5, gradient: ["#eb5e28", "#f59e0b"] as [string, string] },
+  { id: "h4", from: "hn1", to: "hn5", delay: 3, duration: 8, gradient: ["#9333ea", "#f59e0b"] as [string, string] },
+];
 
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
+  const beamContainerRef = useRef<HTMLDivElement>(null);
+  const [beamMounted, setBeamMounted] = useState(false);
+
+  useEffect(() => {
+    setBeamMounted(true);
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -47,15 +61,36 @@ export function Hero() {
         className="absolute -bottom-[10%] -left-[5%] h-[200px] w-[200px] rounded-full bg-charcoal-200 opacity-[0.15] blur-[100px] md:h-[400px] md:w-[400px]"
       />
 
-      {/* Grid pattern overlay */}
+      {/* Grid pattern overlay — reduced opacity */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        className="pointer-events-none absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage:
             "linear-gradient(rgba(245,242,233,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(245,242,233,0.3) 1px, transparent 1px)",
           backgroundSize: "60px 60px",
         }}
       />
+
+      {/* Ambient beam network */}
+      <div
+        ref={beamContainerRef}
+        className="pointer-events-none absolute inset-0"
+      >
+        <div data-beam="hn1" className="absolute left-[15%] top-[20%] h-2 w-2" />
+        <div data-beam="hn2" className="absolute right-[20%] top-[25%] h-2 w-2" />
+        <div data-beam="hn3" className="absolute left-[40%] top-[60%] h-2 w-2" />
+        <div data-beam="hn4" className="absolute left-[25%] bottom-[25%] h-2 w-2" />
+        <div data-beam="hn5" className="absolute right-[15%] bottom-[30%] h-2 w-2" />
+        {beamMounted && beamContainerRef.current && (
+          <AnimatedBeam
+            containerRef={beamContainerRef}
+            paths={heroBeamPaths}
+            opacity={0.1}
+            strokeWidth={1.5}
+            curvature={60}
+          />
+        )}
+      </div>
 
       <h1 className="relative z-[2] text-center text-[clamp(3.5rem,12vw,11rem)] font-light leading-[0.9] tracking-[-0.04em] text-floral">
         <span className="block overflow-hidden">
@@ -73,7 +108,7 @@ export function Hero() {
             className="block"
             style={{ transform: "translateY(110%)" }}
           >
-            <span className="italic text-paprika">finally</span> clear.
+            <span className="font-serif italic text-paprika">finally</span> clear.
           </span>
         </span>
       </h1>

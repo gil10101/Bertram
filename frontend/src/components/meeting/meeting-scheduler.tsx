@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMeetings } from "@/hooks/use-meetings";
 import { MeetingCard } from "./meeting-card";
@@ -98,10 +98,19 @@ export function MeetingScheduler() {
   const handleReply = (meeting: Meeting) => navigateToCompose(meeting, "reply");
   const handleReplyAll = (meeting: Meeting) => navigateToCompose(meeting, "replyAll");
 
-  const handleCancelForm = () => {
+  const handleCancelForm = useCallback(() => {
     setEditingMeeting(null);
     setShowForm(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleCancelForm();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showForm, handleCancelForm]);
 
   if (isLoading) return <LoadingState />;
 
@@ -110,36 +119,43 @@ export function MeetingScheduler() {
       {/* Calendar view */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-medium">Calendar</h2>
-          {!showForm && (
-            <button
-              onClick={() => {
-                setEditingMeeting(null);
-                setShowForm(true);
-              }}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              New Meeting
-            </button>
-          )}
+          <h2 className="text-lg font-bold text-foreground">Calendar</h2>
+          <button
+            onClick={() => {
+              setEditingMeeting(null);
+              setShowForm(true);
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            New Meeting
+          </button>
         </div>
         <MeetingCalendar meetings={meetings} onMeetingClick={setSelectedMeeting} />
       </div>
 
-      {/* Create/Edit form */}
+      {/* Create/Edit form modal */}
       {showForm && (
-        <div>
-          <MeetingForm
-            onSubmit={editingMeeting ? handleUpdate : handleCreate}
-            editingMeeting={editingMeeting}
-            onCancel={handleCancelForm}
+        <div className="dark fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={handleCancelForm}
           />
+
+          {/* Modal panel */}
+          <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-background text-foreground p-4 shadow-xl" role="dialog" aria-modal="true" aria-label={editingMeeting ? "Edit Meeting" : "New Meeting"}>
+            <MeetingForm
+              onSubmit={editingMeeting ? handleUpdate : handleCreate}
+              editingMeeting={editingMeeting}
+              onCancel={handleCancelForm}
+            />
+          </div>
         </div>
       )}
 
       {/* Upcoming meetings list */}
       <div>
-        <h2 className="mb-4 text-lg font-medium">Upcoming Meetings</h2>
+        <h2 className="mb-4 text-lg font-bold text-foreground">Upcoming Meetings</h2>
         {upcomingMeetings.length === 0 ? (
           <p className="text-sm text-muted-foreground">No upcoming meetings</p>
         ) : (

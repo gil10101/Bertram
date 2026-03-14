@@ -12,11 +12,9 @@ export async function GET() {
 
   const backendUrl =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-  const response = await fetch(`${backendUrl}/sync/stream`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${backendUrl}/sync/stream?token=${encodeURIComponent(token)}`,
+  );
 
   if (!response.ok || !response.body) {
     return new NextResponse("Backend error", { status: response.status });

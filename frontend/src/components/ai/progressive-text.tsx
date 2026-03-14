@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 interface ProgressiveTextProps {
   text: string;
@@ -18,8 +18,11 @@ export function ProgressiveText({
   className,
   onComplete,
 }: ProgressiveTextProps) {
-  const words = useMemo(() => text.split(/(\s+)/), [text]);
+  const words = useMemo(() => text.split(" "), [text]);
   const [visibleCount, setVisibleCount] = useState(0);
+
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     setVisibleCount(0);
@@ -27,7 +30,7 @@ export function ProgressiveText({
 
   useEffect(() => {
     if (visibleCount >= words.length) {
-      onComplete?.();
+      onCompleteRef.current?.();
       return;
     }
 
@@ -36,17 +39,17 @@ export function ProgressiveText({
     }, wordDelay);
 
     return () => clearTimeout(timer);
-  }, [visibleCount, words.length, wordDelay, onComplete]);
+  }, [visibleCount, words.length, wordDelay]);
 
   return (
     <span className={className}>
       {words.map((word, i) => (
         <span
           key={i}
-          className="transition-opacity duration-200 ease-out"
+          className="transition-opacity duration-150 ease-out"
           style={{ opacity: i < visibleCount ? 1 : 0 }}
         >
-          {word}
+          {word}{i < words.length - 1 ? " " : ""}
         </span>
       ))}
     </span>

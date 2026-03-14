@@ -37,10 +37,12 @@ interface EmailListProps {
   onToggleSelect?: (emailId: string) => void;
   activeEmailId?: string;
   activeThreadId?: string;
+  focusedEmailId?: string;
   onSelectEmail?: (email: Email) => void;
+  onToggleStar?: (emailId: string, isStarred: boolean) => void;
 }
 
-export function EmailList({ emails, isLoading, isSearch = false, threadCounts, selectMode, selectedIds, onToggleSelect, activeEmailId, activeThreadId, onSelectEmail }: EmailListProps) {
+export function EmailList({ emails, isLoading, isSearch = false, threadCounts, selectMode, selectedIds, onToggleSelect, activeEmailId, activeThreadId, focusedEmailId, onSelectEmail, onToggleStar }: EmailListProps) {
   if (isLoading) return <LoadingState />;
   if (emails.length === 0) return <EmptyState isSearch={isSearch} />;
 
@@ -59,7 +61,9 @@ export function EmailList({ emails, isLoading, isSearch = false, threadCounts, s
               ? activeThreadId === email.thread_id
               : activeEmailId === email.id
           }
+          isFocused={focusedEmailId === email.id}
           onSelect={onSelectEmail}
+          onToggleStar={onToggleStar}
         />
       ))}
     </div>

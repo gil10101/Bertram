@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 import re
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+MAX_RETRIES = 3
 
 
 def _parse_address(addr: dict | None) -> dict:
@@ -78,7 +80,7 @@ class OutlookProvider(EmailProvider):
 
         refresh_token = token_data.get("refresh_token")
         if not refresh_token:
-            return token_data["access_token"]
+            return None
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -92,7 +94,7 @@ class OutlookProvider(EmailProvider):
             )
             if resp.status_code != 200:
                 logger.error("Outlook token refresh failed: %s", resp.text)
-                return token_data["access_token"]
+                return None
             tokens = resp.json()
 
         (
@@ -110,65 +112,71 @@ class OutlookProvider(EmailProvider):
         self._token_data = {**token_data, **tokens}
         return tokens["access_token"]
 
-    async def _graph_get(self, path: str, params: dict | None = None) -> dict:
+    async def _graph_request_with_retry(
+        self,
+        method: str,
+        path: str,
+        params: dict | None = None,
+        json_body: dict | None = None,
+    ) -> httpx.Response:
+        """Execute a Graph API request with 401 re-auth and 429 backoff retry."""
         token = await self._get_access_token()
         if not token:
-            return {}
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{GRAPH_BASE}{path}",
-                headers={"Authorization": f"Bearer {token}"},
-                params=params,
+            raise httpx.HTTPStatusError(
+                "No access token", request=httpx.Request(method, path), response=httpx.Response(401)
             )
-            if resp.status_code == 401:
+
+        headers: dict[str, str] = {"Authorization": f"Bearer {token}"}
+        if method in ("POST", "PATCH"):
+            headers["Content-Type"] = "application/json"
+
+        for attempt in range(MAX_RETRIES + 1):
+            async with httpx.AsyncClient() as client:
+                resp = await client.request(
+                    method, f"{GRAPH_BASE}{path}", headers=headers, params=params, json=json_body,
+                )
+
+            # Re-auth once on 401
+            if resp.status_code == 401 and attempt == 0:
                 self._token_data = None
                 token = await self._get_access_token()
                 if not token:
-                    return {}
-                resp = await client.get(
-                    f"{GRAPH_BASE}{path}",
-                    headers={"Authorization": f"Bearer {token}"},
-                    params=params,
+                    resp.raise_for_status()
+                headers["Authorization"] = f"Bearer {token}"
+                continue
+
+            # Backoff on 429
+            if resp.status_code == 429 and attempt < MAX_RETRIES:
+                retry_after = int(resp.headers.get("Retry-After", str(2 ** attempt)))
+                logger.warning(
+                    "Graph API 429 on %s %s — retrying in %ds (attempt %d/%d)",
+                    method, path, retry_after, attempt + 1, MAX_RETRIES,
                 )
-            resp.raise_for_status()
-            return resp.json()
+                await asyncio.sleep(retry_after)
+                continue
+
+            return resp
+
+        return resp  # last attempt's response
+
+    async def _graph_get(self, path: str, params: dict | None = None) -> dict:
+        resp = await self._graph_request_with_retry("GET", path, params=params)
+        resp.raise_for_status()
+        return resp.json()
 
     async def _graph_post(self, path: str, json_body: dict) -> dict:
-        token = await self._get_access_token()
-        if not token:
-            return {}
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{GRAPH_BASE}{path}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=json_body,
-            )
-            resp.raise_for_status()
-            return resp.json() if resp.content else {}
+        resp = await self._graph_request_with_retry("POST", path, json_body=json_body)
+        resp.raise_for_status()
+        return resp.json() if resp.content else {}
 
     async def _graph_patch(self, path: str, json_body: dict) -> dict:
-        token = await self._get_access_token()
-        if not token:
-            return {}
-        async with httpx.AsyncClient() as client:
-            resp = await client.patch(
-                f"{GRAPH_BASE}{path}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=json_body,
-            )
-            resp.raise_for_status()
-            return resp.json() if resp.content else {}
+        resp = await self._graph_request_with_retry("PATCH", path, json_body=json_body)
+        resp.raise_for_status()
+        return resp.json() if resp.content else {}
 
     async def _graph_delete(self, path: str) -> None:
-        token = await self._get_access_token()
-        if not token:
-            return
-        async with httpx.AsyncClient() as client:
-            resp = await client.delete(
-                f"{GRAPH_BASE}{path}",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            resp.raise_for_status()
+        resp = await self._graph_request_with_retry("DELETE", path)
+        resp.raise_for_status()
 
     def _format_message(self, msg: dict) -> dict:
         sender = _parse_address(msg.get("from"))
@@ -221,7 +229,7 @@ class OutlookProvider(EmailProvider):
         )
         return data.get("unreadItemCount", 0)
 
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox", category: str = "") -> list[dict]:
         skip = (page - 1) * per_page
         params: dict[str, str] = {
             "$top": str(per_page),
@@ -235,7 +243,31 @@ class OutlookProvider(EmailProvider):
         graph_folder = "deleteditems" if folder == "trash" else folder
         data = await self._graph_get(f"/me/mailFolders/{graph_folder}/messages", params=params)
         messages = data.get("value", [])
-        return [self._format_message(m) for m in messages]
+        formatted = [self._format_message(m) for m in messages]
+
+        # Fetch thread message counts per unique conversationId
+        conv_ids = list({e["thread_id"] for e in formatted if e.get("thread_id")})
+        if conv_ids:
+            thread_counts: dict[str, int] = {}
+
+            async def _fetch_conv_count(cid: str):
+                resp = await self._graph_get(
+                    "/me/messages",
+                    params={
+                        "$filter": f"conversationId eq '{cid}'",
+                        "$count": "true",
+                        "$top": "0",
+                    },
+                )
+                thread_counts[cid] = resp.get("@odata.count", 0)
+
+            await asyncio.gather(*[_fetch_conv_count(cid) for cid in conv_ids])
+            for email in formatted:
+                tid = email.get("thread_id")
+                if tid and tid in thread_counts:
+                    email["thread_message_count"] = thread_counts[tid]
+
+        return formatted
 
     async def get_email(self, email_id: str) -> dict:
         data = await self._graph_get(f"/me/messages/{email_id}")
@@ -270,7 +302,7 @@ class OutlookProvider(EmailProvider):
         message: dict = {
             "subject": data.get("subject", ""),
             "body": {
-                "contentType": "text",
+                "contentType": "html",
                 "content": data.get("body", ""),
             },
             "toRecipients": to_recipients,
@@ -306,6 +338,18 @@ class OutlookProvider(EmailProvider):
             updates["flag"] = {
                 "flagStatus": "flagged" if data["is_starred"] else "notFlagged"
             }
+        if data.get("add_labels") or data.get("remove_labels"):
+            # Outlook uses categories instead of labels — fetch current, merge, and patch
+            msg = await self._graph_get(
+                f"/me/messages/{email_id}",
+                params={"$select": "categories"},
+            )
+            categories = set(msg.get("categories", []))
+            for label_name in data.get("add_labels", []):
+                categories.add(label_name)
+            for label_name in data.get("remove_labels", []):
+                categories.discard(label_name)
+            updates["categories"] = list(categories)
         if updates:
             await self._graph_patch(f"/me/messages/{email_id}", updates)
         if data.get("archive") is True:

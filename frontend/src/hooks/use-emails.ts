@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { createApiClient } from "@/lib/api-client";
 import { useEmailSync } from "@/components/common/email-sync-provider";
@@ -19,8 +19,10 @@ export interface Email {
   is_read: boolean;
   is_starred: boolean;
   received_at: string;
+  labels?: string[];
   priority?: "high" | "medium" | "low";
   provider?: string;
+  thread_message_count?: number;
 }
 
 const PER_PAGE = 20;
@@ -37,7 +39,7 @@ export interface UseEmailsResult {
   hasNextPage: boolean;
 }
 
-export function useEmails(provider?: string, searchQuery?: string, folder?: string): UseEmailsResult {
+export function useEmails(provider?: string, searchQuery?: string, folder?: string, category?: string): UseEmailsResult {
   const { getToken } = useAuth();
   const { onNewEmails } = useEmailSync();
   const [emails, setEmails] = useState<Email[]>([]);
@@ -45,6 +47,9 @@ export function useEmails(provider?: string, searchQuery?: string, folder?: stri
   const [error, setError] = useState<Error | null>(null);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+
+  const emailsRef = useRef(emails);
+  emailsRef.current = emails;
 
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const refetch = useCallback(() => {
@@ -64,6 +69,13 @@ export function useEmails(provider?: string, searchQuery?: string, folder?: stri
           ),
         );
       }
+      if (data.is_starred !== undefined) {
+        setEmails((prev) =>
+          prev.map((e) =>
+            emailIds.includes(e.id) ? { ...e, is_starred: data.is_starred as boolean } : e,
+          ),
+        );
+      }
     },
     [getToken],
   );
@@ -72,7 +84,7 @@ export function useEmails(provider?: string, searchQuery?: string, folder?: stri
   const removeEmails = useCallback(
     async (emailIds: string[], data: Record<string, unknown>) => {
       const api = createApiClient(getToken);
-      const snapshot = emails;
+      const snapshot = emailsRef.current;
       setEmails((prev) => prev.filter((e) => !emailIds.includes(e.id)));
       try {
         await Promise.all(emailIds.map((id) => api.patch(`/emails/${id}`, data)));
@@ -81,13 +93,13 @@ export function useEmails(provider?: string, searchQuery?: string, folder?: stri
         throw new Error("Failed to update emails");
       }
     },
-    [getToken, emails],
+    [getToken],
   );
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [provider, searchQuery, folder]);
+  }, [provider, searchQuery, folder, category]);
 
   // Auto-refetch when SSE detects new emails
   useEffect(() => {
@@ -95,28 +107,35 @@ export function useEmails(provider?: string, searchQuery?: string, folder?: stri
   }, [onNewEmails, refetch]);
 
   useEffect(() => {
+    let cancelled = false;
     setIsLoading(true);
     const api = createApiClient(getToken);
     const params = new URLSearchParams();
     if (provider) params.set("provider", provider);
     if (searchQuery) params.set("q", searchQuery);
     if (folder) params.set("folder", folder);
+    if (category) params.set("category", category);
     params.set("page", String(page));
     params.set("per_page", String(PER_PAGE));
     api
       .get<Email[]>(`/emails?${params.toString()}`)
       .then((res) => {
+        if (cancelled) return;
         const data = res ?? [];
         setEmails(data);
         setHasNextPage(data.length === PER_PAGE);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err : new Error("Unknown error"));
         setEmails([]);
         setHasNextPage(false);
       })
-      .finally(() => setIsLoading(false));
-  }, [refetchTrigger, getToken, provider, searchQuery, folder, page]);
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [refetchTrigger, getToken, provider, searchQuery, folder, page, category]);
 
   return { emails, isLoading, error, refetch, updateEmails, removeEmails, page, setPage, hasNextPage };
 }

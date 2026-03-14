@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { Menu, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useMobileSidebar } from "./mobile-sidebar-provider";
 import { useSearch } from "./search-provider";
+import { isMac } from "@/lib/platform";
 
 export function Topbar() {
   const { toggle } = useMobileSidebar();
@@ -37,7 +37,7 @@ export function Topbar() {
           onChange={(e) => setInput(e.target.value)}
           className="w-full pl-9 pr-8"
         />
-        {input && (
+        {input ? (
           <button
             type="button"
             onClick={() => setInput("")}
@@ -45,15 +45,12 @@ export function Topbar() {
           >
             <X className="h-4 w-4" />
           </button>
+        ) : (
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {isMac ? "\u2318K" : "Ctrl+K"}
+          </span>
         )}
       </div>
-      <UserButton
-        appearance={{
-          elements: {
-            avatarBox: "h-8 w-8 md:h-9 md:w-9",
-          },
-        }}
-      />
     </header>
   );
 }

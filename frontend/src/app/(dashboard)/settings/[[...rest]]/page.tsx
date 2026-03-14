@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { UserProfile } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { createApiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { MailSidebar } from "@/components/mail/mail-sidebar";
 
 const PROVIDERS = [
   {
@@ -138,7 +139,7 @@ function ConnectedAccounts() {
                   {icon}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{name}</p>
+                  <p className="text-sm font-medium text-foreground">{name}</p>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {loading ? (
                       "Checking..."
@@ -222,11 +223,12 @@ const clerkDarkAppearance = {
   },
 };
 
-export default function SettingsPage() {
-  return (
-    <div className="h-full overflow-y-auto p-4 md:p-6">
+function SettingsContent() {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  const settingsBody = (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight md:mb-8 md:text-3xl">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-foreground md:mb-8 md:text-3xl">
         Settings
       </h1>
 
@@ -247,6 +249,46 @@ export default function SettingsPage() {
         </section>
       </div>
     </div>
+  );
+
+  if (isDesktop) {
+    return (
+      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+        <MailSidebar />
+        <div className="flex flex-1 min-w-0 gap-[2px] pr-1.5 py-1.5 pl-0">
+          <div className="flex-1 min-w-0">
+            <div className="h-full overflow-hidden rounded-xl bg-background">
+              <div className="h-full overflow-y-auto p-4 md:p-6">
+                {settingsBody}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile layout
+  return (
+    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+      <MailSidebar />
+      <div className="flex flex-1 min-w-0 p-1 pl-0">
+        <div className="flex-1 min-w-0">
+          <div className="h-full overflow-hidden rounded-xl bg-background">
+            <div className="h-full overflow-y-auto p-4">
+              {settingsBody}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   );
 }

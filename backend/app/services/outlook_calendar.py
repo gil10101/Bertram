@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Any
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+MAX_RETRIES = 3
 
 
 def _normalize_event(event: dict) -> dict:
@@ -117,7 +119,7 @@ class OutlookCalendarProvider(CalendarProvider):
 
         refresh_token = token_data.get("refresh_token")
         if not refresh_token:
-            return token_data["access_token"]
+            return None
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -131,7 +133,7 @@ class OutlookCalendarProvider(CalendarProvider):
             )
             if resp.status_code != 200:
                 logger.error("Outlook token refresh failed: %s", resp.text)
-                return token_data["access_token"]
+                return None
             tokens = resp.json()
 
         (
@@ -157,23 +159,40 @@ class OutlookCalendarProvider(CalendarProvider):
             return {}
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.request(
-                method, f"{GRAPH_BASE}{path}", headers=headers, params=params, json=json_body
-            )
-            if resp.status_code == 401:
+        for attempt in range(MAX_RETRIES + 1):
+            async with httpx.AsyncClient() as client:
+                resp = await client.request(
+                    method, f"{GRAPH_BASE}{path}", headers=headers, params=params, json=json_body
+                )
+
+            # Re-auth once on 401
+            if resp.status_code == 401 and attempt == 0:
                 self._token_data = None
                 token = await self._get_access_token()
                 if not token:
                     return {}
                 headers["Authorization"] = f"Bearer {token}"
-                resp = await client.request(
-                    method, f"{GRAPH_BASE}{path}", headers=headers, params=params, json=json_body
+                continue
+
+            # Backoff on 429
+            if resp.status_code == 429 and attempt < MAX_RETRIES:
+                retry_after = int(resp.headers.get("Retry-After", str(2 ** attempt)))
+                logger.warning(
+                    "Graph API 429 on %s %s — retrying in %ds (attempt %d/%d)",
+                    method, path, retry_after, attempt + 1, MAX_RETRIES,
                 )
+                await asyncio.sleep(retry_after)
+                continue
+
             if resp.status_code == 204:
                 return {}
             resp.raise_for_status()
             return resp.json() if resp.content else {}
+
+        if resp.status_code == 204:
+            return {}
+        resp.raise_for_status()
+        return resp.json() if resp.content else {}
 
     async def list_events(self, start: datetime, end: datetime) -> list[dict]:
         start_str = start.isoformat() + "Z" if not start.tzinfo else start.isoformat()

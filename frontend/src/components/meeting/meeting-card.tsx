@@ -65,7 +65,7 @@ export function MeetingCard({ meeting, className, onClick }: MeetingCardProps) {
     >
       <ProviderStripe />
       <div className="flex items-start justify-between">
-        <h3 className="font-semibold">{meeting.title}</h3>
+        <h3 className="font-semibold text-foreground">{meeting.title}</h3>
         <ProviderBadges providers={providers} />
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{dateStr} · {timeStr}</p>

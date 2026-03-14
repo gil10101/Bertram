@@ -14,6 +14,9 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Bertram — AI Email Manager",
   description: "AI-powered email management with Gmail and Outlook integration",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

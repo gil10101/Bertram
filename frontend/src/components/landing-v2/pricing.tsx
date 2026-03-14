@@ -90,10 +90,10 @@ export function Pricing() {
           <div
             key={plan.name}
             data-price-col=""
-            className={`relative border-b px-6 py-10 md:border-b-0 md:border-l md:px-10 md:py-12 md:first:border-l-0 ${
+            className={`relative border-b px-6 py-10 transition-all duration-300 hover:scale-[1.01] md:border-b-0 md:border-l md:px-10 md:py-12 md:first:border-l-0 ${
               plan.featured
-                ? "border-charcoal-400/30 before:absolute before:left-0 before:right-0 before:top-0 before:h-0.5 before:bg-paprika"
-                : "border-charcoal-400/30"
+                ? "border-charcoal-400/30 bg-gradient-to-b from-paprika/5 to-transparent before:absolute before:left-0 before:right-0 before:top-0 before:h-0.5 before:bg-paprika hover:shadow-[0_0_30px_rgba(235,94,40,0.08)]"
+                : "border-charcoal-400/30 hover:shadow-[0_0_20px_rgba(255,252,242,0.03)]"
             }`}
             style={{ opacity: 0, transform: "translateY(40px)" }}
           >

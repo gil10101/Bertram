@@ -97,7 +97,7 @@ export function EmailSyncProvider({ children }: { children: React.ReactNode }) {
         try {
           const data = JSON.parse(e.data);
           setNewEmailCount((prev) => prev + (data.count ?? 0));
-          setNewEmails(data.emails ?? []);
+          setNewEmails((prev) => [...prev, ...(data.emails ?? [])]);
           setUnreadCount(data.unread_count ?? 0);
           // Notify listeners (auto-refetch)
           listenersRef.current.forEach((cb) => cb());

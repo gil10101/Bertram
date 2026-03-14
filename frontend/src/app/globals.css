@@ -39,6 +39,15 @@
     --ring: 17 83% 53.9%;
 
     --radius: 0.5rem;
+
+    --sidebar-background: 40 7% 8%;
+    --sidebar-foreground: 45 37.5% 93.7%;
+    --sidebar-primary: 17 83% 53.9%;
+    --sidebar-primary-foreground: 45 37.5% 93.7%;
+    --sidebar-accent: 34 5.8% 23.7%;
+    --sidebar-accent-foreground: 45 37.5% 93.7%;
+    --sidebar-border: 34 5.8% 23.7%;
+    --sidebar-ring: 17 83% 53.9%;
   }
 
   .dark {
@@ -69,6 +78,15 @@
     --border: 34 5.8% 23.7%;
     --input: 34 5.8% 23.7%;
     --ring: 17 83% 53.9%;
+
+    --sidebar-background: 40 7% 8%;
+    --sidebar-foreground: 45 37.5% 93.7%;
+    --sidebar-primary: 17 83% 53.9%;
+    --sidebar-primary-foreground: 45 37.5% 93.7%;
+    --sidebar-accent: 34 5.8% 23.7%;
+    --sidebar-accent-foreground: 45 37.5% 93.7%;
+    --sidebar-border: 34 5.8% 23.7%;
+    --sidebar-ring: 17 83% 53.9%;
   }
 }
 
@@ -80,5 +98,170 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* Bertram custom tokens — light mode defaults */
+:root {
+  --selected: 36 8% 20%;
+  --faint-text: 38 12% 55%;
+  --secondary-text: 38 18% 70%;
+  --star: 45 60% 70%;
+  --subtle-accent: 17 80% 95%;
+  --primary-hover: 17 75% 48%;
+}
+
+/* Dark mode overrides — boost lightness for readability on dark backgrounds */
+.dark {
+  --faint-text: 38 12% 62%;
+  --secondary-text: 38 18% 82%;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--card));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--faint-text));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Ghost text autocomplete suggestion */
+.ghost-text-suggestion {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Command palette (cmdk) */
+[cmdk-overlay] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: cmdk-fade-in 150ms ease;
+}
+
+[cmdk-dialog] {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  width: 100%;
+  max-width: 32rem;
+  animation: cmdk-scale-in 150ms ease;
+}
+
+[cmdk-root] {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+[cmdk-input] {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+[cmdk-input]::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+[cmdk-list] {
+  max-height: 20rem;
+  overflow: auto;
+  padding: 0.5rem;
+}
+
+[cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  transition: background 100ms ease;
+  user-select: none;
+}
+
+[cmdk-item][data-selected="true"] {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+[cmdk-group-heading] {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[cmdk-group] + [cmdk-group] {
+  margin-top: 0.25rem;
+}
+
+[cmdk-separator] {
+  height: 1px;
+  background: hsl(var(--border));
+  margin: 0.25rem 0;
+}
+
+[cmdk-empty] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 4rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+@keyframes cmdk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cmdk-scale-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Sequence key indicator toast */
+.sequence-indicator {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  animation: cmdk-fade-in 100ms ease;
 }
 

@@ -21,8 +21,9 @@ async def list_emails(
     per_page: int = Query(20, ge=1, le=100),
     q: str = Query("", max_length=500),
     folder: str = Query("inbox", pattern=r"^[a-zA-Z]+$", max_length=20),
+    category: str = Query("", max_length=20),
 ):
-    return await provider.list_emails(page=page, per_page=per_page, q=q, folder=folder)
+    return await provider.list_emails(page=page, per_page=per_page, q=q, folder=folder, category=category)
 
 
 @router.get("/{email_id}")
@@ -53,7 +54,10 @@ async def send_email(
     data: str = Form(...),
     files: list[UploadFile] = File(default=[]),
 ):
-    body = json.loads(data)
+    try:
+        body = json.loads(data)
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid JSON in 'data' field")
     attachments: list[tuple[str, str, bytes]] | None = None
     if files:
         attachments = []

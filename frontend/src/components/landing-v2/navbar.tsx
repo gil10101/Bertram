@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { BertramLogo } from "../common/bertram-logo";
 
 interface NavbarProps {
   isSignedIn: boolean;
@@ -16,14 +17,26 @@ const navLinks = [
 
 export function Navbar({ isSignedIn }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <>
-      <nav className="fixed left-0 right-0 top-0 z-[100] flex items-center justify-between px-6 py-5 md:px-12 md:py-6">
+      <nav
+        className={`fixed left-0 right-0 top-0 z-[100] flex items-center justify-between px-6 py-5 transition-all duration-500 md:px-12 md:py-6 ${
+          scrolled ? "bg-carbon-500/80 backdrop-blur-xl" : ""
+        }`}
+      >
         <Link
           href="/"
-          className="text-lg font-bold tracking-tight text-floral"
+          className="flex items-center gap-1 text-lg font-bold tracking-tight text-floral"
         >
+          <BertramLogo size={34} />
           Bertram
         </Link>
         <div className="hidden gap-10 text-[0.8rem] uppercase tracking-[0.05em] md:flex">
@@ -31,7 +44,7 @@ export function Navbar({ isSignedIn }: NavbarProps) {
             <a
               key={link.href}
               href={link.href}
-              className="text-dust-400 transition-colors hover:text-floral"
+              className="text-dust-400 transition-colors duration-500 hover:text-floral"
             >
               {link.label}
             </a>

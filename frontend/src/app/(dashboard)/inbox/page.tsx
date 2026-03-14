@@ -1,20 +1,26 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, Suspense } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import { useEmails } from "@/hooks/use-emails";
+import { useDrafts } from "@/hooks/use-drafts";
 import { useConnectedProviders } from "@/hooks/use-connected-providers";
 import { useSearch } from "@/components/common/search-provider";
 import { useEmailSync } from "@/components/common/email-sync-provider";
 import { useCompose } from "@/components/common/compose-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { EmailList } from "@/components/email/email-list";
-import { EmailToolbar } from "@/components/email/email-toolbar";
-import { EmailDetail } from "@/components/email/email-detail";
-import { ThreadDetail } from "@/components/email/thread-detail";
+import { createApiClient } from "@/lib/api-client";
+import { MailSidebar } from "@/components/mail/mail-sidebar";
+import { MailList } from "@/components/mail/mail-list";
+import { ThreadDisplay } from "@/components/mail/thread-display";
+import { EmptyThreadDisplay } from "@/components/mail/empty-thread-display";
 import { EmailCompose } from "@/components/email/email-compose";
-import { NewEmailBanner } from "@/components/email/new-email-banner";
-import { cn } from "@/lib/utils";
+import { MailListHotkeys } from "@/components/shortcuts/mail-list-hotkeys";
+import { ThreadDisplayHotkeys } from "@/components/shortcuts/thread-display-hotkeys";
+import type { GmailCategory } from "@/components/email/gmail-category-tabs";
 import type { Email } from "@/hooks/use-emails";
+import type { Draft } from "@/types/email";
 
 interface SelectedEmail {
   id: string;
@@ -22,22 +28,130 @@ interface SelectedEmail {
   provider?: string;
 }
 
-export default function InboxPage() {
+const FOLDER_TITLES: Record<string, string> = {
+  SENT: "Sent",
+  SPAM: "Spam",
+  TRASH: "Bin",
+  archive: "Archive",
+};
+
+function draftToEmail(draft: Draft): Email {
+  return {
+    id: draft.id,
+    subject: draft.subject || "(no subject)",
+    sender: {
+      name: draft.to.length > 0 ? draft.to.join(", ") : "(no recipients)",
+      email: draft.to[0] || "",
+    },
+    snippet: draft.body ? draft.body.replace(/<[^>]+>/g, "").slice(0, 100) : "",
+    is_read: true,
+    is_starred: false,
+    received_at: draft.updated_at,
+    labels: [],
+  };
+}
+
+function InboxContent() {
+  const { getToken } = useAuth();
+  const searchParams = useSearchParams();
   const { providers } = useConnectedProviders();
   const { query: searchQuery } = useSearch();
-  const [activeProvider, setActiveProvider] = useState<string>("all");
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedEmail, setSelectedEmail] = useState<SelectedEmail | null>(null);
   const { newEmailCount, newEmails, dismiss } = useEmailSync();
   const { isComposeOpen, composeData, closeCompose } = useCompose();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
+  // Derive folder/view from URL params
+  const folder = searchParams.get("folder") ?? undefined;
+  const view = searchParams.get("view") ?? undefined;
+  const isDraftsView = view === "drafts";
+
+  // Determine title from folder/view
+  const title = isDraftsView
+    ? "Drafts"
+    : view === "starred"
+      ? "Favorites"
+      : folder
+        ? FOLDER_TITLES[folder] ?? "Inbox"
+        : "Inbox";
+
+  const [activeProvider, setActiveProvider] = useState<string>("all");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedEmail, setSelectedEmail] = useState<SelectedEmail | null>(null);
+  const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<GmailCategory>("primary");
+  const [isPrioritizing, setIsPrioritizing] = useState(false);
+  const [priorityOverrides, setPriorityOverrides] = useState<Map<string, "high" | "medium" | "low">>(new Map());
+
   const providerForQuery =
     activeProvider === "all" ? undefined : activeProvider;
+  const isGmailActive = activeProvider === "gmail";
+  const categoryForQuery = isGmailActive ? activeCategory : undefined;
 
-  const { emails, isLoading, refetch, updateEmails, removeEmails, page, setPage, hasNextPage } =
-    useEmails(providerForQuery, searchQuery);
+  // For starred view, we pass starred filter
+  const folderForQuery = view === "starred" || isDraftsView ? undefined : folder;
+
+  const { emails: rawEmails, isLoading, refetch, updateEmails, removeEmails, page, setPage, hasNextPage } =
+    useEmails(providerForQuery, searchQuery, folderForQuery, categoryForQuery);
+
+  // Fetch up to 5 most recent starred emails for the pinned section (page 1 only)
+  const [pinnedEmails, setPinnedEmails] = useState<Email[]>([]);
+  const pinnedFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (page !== 1 || isDraftsView || view === "starred" || searchQuery) {
+      setPinnedEmails([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchPinned = async () => {
+      try {
+        const api = createApiClient(getToken);
+        const params = new URLSearchParams();
+        if (providerForQuery) params.set("provider", providerForQuery);
+        params.set("folder", "starred");
+        params.set("page", "1");
+        params.set("per_page", "5");
+        const res = await api.get<Email[]>(`/emails?${params.toString()}`);
+        if (!cancelled) setPinnedEmails(res ?? []);
+      } catch {
+        if (!cancelled) setPinnedEmails([]);
+      }
+    };
+    fetchPinned();
+    pinnedFetchedRef.current = true;
+    return () => { cancelled = true; };
+  }, [page, isDraftsView, view, searchQuery, getToken, providerForQuery]);
+
+  // Drafts data
+  const { drafts, isLoading: draftsLoading, refetch: refetchDrafts } = useDrafts();
+
+  const draftEmails = useMemo(
+    () => (isDraftsView ? drafts.map(draftToEmail) : []),
+    [isDraftsView, drafts]
+  );
+
+  // Filter starred emails client-side for "Favorites" view
+  const filteredEmails = isDraftsView
+    ? draftEmails
+    : view === "starred"
+      ? rawEmails.filter((e) => e.is_starred)
+      : rawEmails;
+
+  // Merge AI priority overrides
+  const emails = !isDraftsView && priorityOverrides.size > 0
+    ? filteredEmails.map((e) => {
+        const p = priorityOverrides.get(e.id);
+        return p ? { ...e, priority: p } : e;
+      })
+    : filteredEmails;
+
+  const displayLoading = isDraftsView ? draftsLoading : isLoading;
+
+  // Find full draft data for selected draft
+  const selectedDraft = isDraftsView && selectedEmail
+    ? drafts.find((d) => d.id === selectedEmail.id) ?? null
+    : null;
 
   const toggleSelectMode = useCallback(() => {
     setSelectMode((prev) => !prev);
@@ -66,9 +180,7 @@ export default function InboxPage() {
       await removeEmails([...selectedIds], { archive: true });
       setSelectedIds(new Set());
       setSelectMode(false);
-    } catch {
-      // Rollback handled by removeEmails; selection preserved so user can retry
-    }
+    } catch { /* handled */ }
   }, [selectedIds, removeEmails]);
 
   const handleDelete = useCallback(async () => {
@@ -77,179 +189,344 @@ export default function InboxPage() {
       await removeEmails([...selectedIds], { trash: true });
       setSelectedIds(new Set());
       setSelectMode(false);
-    } catch {
-      // Rollback handled by removeEmails; selection preserved so user can retry
-    }
+    } catch { /* handled */ }
   }, [selectedIds, removeEmails]);
+
+  const handleToggleStar = useCallback(async (emailId: string, isStarred: boolean) => {
+    if (isDraftsView) return;
+    await updateEmails([emailId], { is_starred: isStarred });
+  }, [updateEmails, isDraftsView]);
 
   const handleSelectEmail = useCallback((email: Email) => {
     closeCompose();
     setSelectedEmail({
       id: email.id,
-      threadId: email.thread_id,
-      provider: email.provider,
+      threadId: isDraftsView ? undefined : email.thread_id,
+      provider: isDraftsView ? undefined : email.provider,
     });
-  }, [closeCompose]);
+  }, [closeCompose, isDraftsView]);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedEmail(null);
-  }, []);
+    if (isDraftsView) refetchDrafts();
+  }, [isDraftsView, refetchDrafts]);
 
   const handleActionComplete = useCallback(() => {
     setSelectedEmail(null);
     refetch();
   }, [refetch]);
 
+  const handleDraftSent = useCallback(() => {
+    setSelectedEmail(null);
+    refetchDrafts();
+  }, [refetchDrafts]);
+
+  const handleAiPrioritize = useCallback(async () => {
+    if (emails.length === 0 || isPrioritizing) return;
+    setIsPrioritizing(true);
+    try {
+      const api = createApiClient(getToken);
+      const res = await api.post<{ priorities: { id: string; priority: "high" | "medium" | "low" }[] }>(
+        "/ai/prioritize"
+      );
+      const priorityMap = new Map(
+        (res.priorities ?? []).map((p) => [p.id, p.priority])
+      );
+      setPriorityOverrides(priorityMap);
+    } catch { /* silently fail */ } finally {
+      setIsPrioritizing(false);
+    }
+  }, [emails.length, isPrioritizing, getToken]);
+
+  const handleProviderChange = useCallback((provider: string) => {
+    setActiveProvider(provider);
+    setActiveCategory("primary");
+  }, []);
+
   const handleComposeSent = useCallback(() => {
     closeCompose();
     refetch();
   }, [closeCompose, refetch]);
 
-  const showRightPanel = selectedEmail !== null || isComposeOpen;
+  const handleSelectAll = useCallback(() => {
+    if (!selectMode) setSelectMode(true);
+    setSelectedIds(new Set(emails.map((e) => e.id)));
+  }, [selectMode, emails]);
 
-  // Desktop: split-pane layout with animated panels
+  const handleExitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleMarkUnread = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    await updateEmails([...selectedIds], { is_read: false });
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  }, [selectedIds, updateEmails]);
+
+  // Navigate to prev/next email in list
+  const handlePrevEmail = useCallback(() => {
+    if (!selectedEmail) return;
+    const idx = emails.findIndex((e) => e.id === selectedEmail.id);
+    if (idx > 0) {
+      const prev = emails[idx - 1];
+      setSelectedEmail({ id: prev.id, threadId: prev.thread_id, provider: prev.provider });
+    }
+  }, [selectedEmail, emails]);
+
+  const handleNextEmail = useCallback(() => {
+    if (!selectedEmail) return;
+    const idx = emails.findIndex((e) => e.id === selectedEmail.id);
+    if (idx < emails.length - 1) {
+      const next = emails[idx + 1];
+      setSelectedEmail({ id: next.id, threadId: next.thread_id, provider: next.provider });
+    }
+  }, [selectedEmail, emails]);
+
+  // Thread display actions for hotkeys
+  // Reply/Forward are now handled inline inside ThreadDisplay — these are no-ops
+  const handleThreadReply = useCallback(() => {}, []);
+
+  const handleThreadArchive = useCallback(async () => {
+    if (!selectedEmail) return;
+    try {
+      await removeEmails([selectedEmail.id], { archive: true });
+      setSelectedEmail(null);
+      refetch();
+    } catch { /* handled */ }
+  }, [selectedEmail, removeEmails, refetch]);
+
+  const handleThreadDelete = useCallback(async () => {
+    if (!selectedEmail) return;
+    try {
+      await removeEmails([selectedEmail.id], { trash: true });
+      setSelectedEmail(null);
+      refetch();
+    } catch { /* handled */ }
+  }, [selectedEmail, removeEmails, refetch]);
+
+  // Shared MailList props
+  const mailListProps = {
+    title,
+    emails,
+    pinnedEmails: page === 1 && !isDraftsView && view !== "starred" && !searchQuery ? pinnedEmails : undefined,
+    isLoading: displayLoading,
+    onSelectEmail: handleSelectEmail,
+    onToggleStar: handleToggleStar,
+    selectMode: isDraftsView ? false : selectMode,
+    selectedIds,
+    onToggleSelectMode: toggleSelectMode,
+    onToggleSelect: toggleSelect,
+    onMarkRead: isDraftsView ? undefined : handleMarkRead,
+    onArchive: isDraftsView ? undefined : handleArchive,
+    onDelete: isDraftsView ? undefined : handleDelete,
+    selectedCount: selectedIds.size,
+    page: isDraftsView ? 1 : page,
+    hasNextPage: isDraftsView ? false : hasNextPage,
+    onPageChange: setPage,
+    emailCount: emails.length,
+    isGmailActive: isDraftsView ? false : isGmailActive,
+    activeCategory,
+    onCategoryChange: setActiveCategory,
+    onAiPrioritize: isDraftsView ? undefined : handleAiPrioritize,
+    isPrioritizing,
+    newEmailCount: isDraftsView ? 0 : newEmailCount,
+    newEmails: isDraftsView ? undefined : newEmails,
+    onDismissNewEmails: isDraftsView ? undefined : dismiss,
+    connectedProviders: isDraftsView ? undefined : providers,
+    activeProvider: isDraftsView ? undefined : activeProvider,
+    onProviderChange: isDraftsView ? undefined : handleProviderChange,
+    searchQuery,
+  } as const;
+
+  // Right pane content helper
+  const renderDetailPane = (showNav: boolean) => {
+    if (isComposeOpen) {
+      return (
+        <div className="h-full overflow-y-auto p-6">
+          <Suspense fallback={null}>
+            <EmailCompose
+              embedded
+              initialData={composeData ?? undefined}
+              onClose={closeCompose}
+              onSent={handleComposeSent}
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (selectedDraft) {
+      return (
+        <div className="h-full overflow-y-auto p-6">
+          <Suspense fallback={null}>
+            <EmailCompose
+              key={selectedDraft.id}
+              embedded
+              initialDraftId={selectedDraft.id}
+              initialData={{
+                mode: selectedDraft.mode || "new",
+                to: selectedDraft.to.join(", "),
+                cc: selectedDraft.cc.join(", "),
+                subject: selectedDraft.subject,
+                body: selectedDraft.body,
+                thread_id: selectedDraft.thread_id ?? undefined,
+                in_reply_to: selectedDraft.in_reply_to ?? undefined,
+                references: selectedDraft.references ?? undefined,
+              }}
+              onClose={handleCloseDetail}
+              onSent={handleDraftSent}
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (selectedEmail) {
+      return (
+        <ThreadDisplay
+          key={selectedEmail.threadId ?? selectedEmail.id}
+          emailId={selectedEmail.id}
+          threadId={selectedEmail.threadId}
+          provider={selectedEmail.provider}
+          onClose={handleCloseDetail}
+          onPrev={showNav ? handlePrevEmail : undefined}
+          onNext={showNav ? handleNextEmail : undefined}
+          onActionComplete={handleActionComplete}
+          onToggleStar={handleToggleStar}
+          removeEmails={removeEmails}
+        />
+      );
+    }
+
+    return <EmptyThreadDisplay />;
+  };
+
+  // Desktop three-pane layout
   if (isDesktop) {
     return (
-      <div className="flex h-full">
-        {/* Left panel: email list */}
-        <div
-          className={cn(
-            "flex h-full shrink-0 flex-col overflow-hidden transition-all duration-300 ease-in-out",
-            showRightPanel ? "w-[400px] border-r border-border" : "w-full"
-          )}
-        >
-          {/* Sticky header */}
-          <div className="flex shrink-0 flex-col gap-4 p-4">
-            {searchQuery && (
-              <p className="text-sm text-muted-foreground">
-                Results for &quot;{searchQuery}&quot;
-              </p>
-            )}
-            <EmailToolbar
-              onRefresh={refetch}
-              onMarkRead={handleMarkRead}
+      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+        {!isDraftsView && (
+          <>
+            <MailListHotkeys
+              emails={emails}
+              onSelectEmail={handleSelectEmail}
+              onToggleStar={handleToggleStar}
               onArchive={handleArchive}
               onDelete={handleDelete}
-              connectedProviders={providers}
-              activeProvider={activeProvider}
-              onProviderChange={setActiveProvider}
-              page={page}
-              emailCount={emails.length}
-              hasNextPage={hasNextPage}
-              onPageChange={setPage}
-              selectMode={selectMode}
-              onToggleSelectMode={toggleSelectMode}
-              selectedCount={selectedIds.size}
-            />
-            {newEmailCount > 0 && (
-              <NewEmailBanner
-                count={newEmailCount}
-                emails={newEmails}
-                onDismiss={dismiss}
-              />
-            )}
-          </div>
-          {/* Scrollable list */}
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
-            <EmailList
-              emails={emails}
-              isLoading={isLoading}
-              isSearch={!!searchQuery}
-              selectMode={selectMode}
-              selectedIds={selectedIds}
+              onMarkRead={handleMarkRead}
+              onMarkUnread={handleMarkUnread}
               onToggleSelect={toggleSelect}
-              activeEmailId={selectedEmail?.id}
-              activeThreadId={selectedEmail?.threadId}
-              onSelectEmail={handleSelectEmail}
+              onSelectAll={handleSelectAll}
+              onExitSelectMode={handleExitSelectMode}
+              onAiPrioritize={handleAiPrioritize}
+              updateEmails={updateEmails}
+              selectMode={selectMode}
+              enabled={!selectedEmail && !isComposeOpen}
+              onFocusedEmailChange={setFocusedEmailId}
             />
-          </div>
-        </div>
+            <ThreadDisplayHotkeys
+              onReply={handleThreadReply}
+              onReplyAll={handleThreadReply}
+              onForward={handleThreadReply}
+              onArchive={handleThreadArchive}
+              onDelete={handleThreadDelete}
+              onBack={handleCloseDetail}
+              enabled={selectedEmail !== null}
+            />
+          </>
+        )}
 
-        {/* Right panel: email detail or compose */}
-        <div
-          className={cn(
-            "overflow-hidden transition-all duration-300 ease-in-out",
-            showRightPanel ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
-          )}
-        >
-          <div className="h-full overflow-y-auto p-6">
-            {isComposeOpen ? (
-              <Suspense fallback={null}>
-                <EmailCompose
-                  embedded
-                  initialData={composeData ?? undefined}
-                  onClose={closeCompose}
-                  onSent={handleComposeSent}
-                />
-              </Suspense>
-            ) : selectedEmail ? (
-              selectedEmail.threadId ? (
-                <ThreadDetail
-                  key={selectedEmail.threadId}
-                  threadId={selectedEmail.threadId}
-                  provider={selectedEmail.provider}
-                  embedded
-                  onClose={handleCloseDetail}
-                  onActionComplete={handleActionComplete}
-                />
-              ) : (
-                <EmailDetail
-                  key={selectedEmail.id}
-                  emailId={selectedEmail.id}
-                  provider={selectedEmail.provider}
-                  embedded
-                  onClose={handleCloseDetail}
-                  onActionComplete={handleActionComplete}
-                />
-              )
-            ) : null}
+        <MailSidebar />
+
+        <div className="flex flex-1 min-w-0 gap-[2px] pr-1.5 py-1.5 pl-0">
+          {/* Mail List pane */}
+          <div className="w-[340px] flex-shrink-0">
+            <div className="h-full overflow-hidden rounded-xl bg-background">
+              <MailList
+                {...mailListProps}
+                selectedEmailId={selectedEmail?.threadId ?? selectedEmail?.id}
+                focusedEmailId={focusedEmailId ?? undefined}
+              />
+            </div>
+          </div>
+
+          {/* Detail pane */}
+          <div className="flex-1 min-w-0">
+            <div className="h-full overflow-hidden rounded-xl bg-background">
+              {renderDetailPane(true)}
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Mobile: single-column layout (navigates via Link)
-  return (
-    <div className="h-full overflow-y-auto p-4">
-      <div className="flex flex-col gap-4">
-        {searchQuery && (
-          <p className="text-sm text-muted-foreground">
-            Results for &quot;{searchQuery}&quot;
-          </p>
-        )}
-        <EmailToolbar
-          onRefresh={refetch}
-          onMarkRead={handleMarkRead}
-          onArchive={handleArchive}
-          onDelete={handleDelete}
-          connectedProviders={providers}
-          activeProvider={activeProvider}
-          onProviderChange={setActiveProvider}
-          page={page}
-          emailCount={emails.length}
-          hasNextPage={hasNextPage}
-          onPageChange={setPage}
-          selectMode={selectMode}
-          onToggleSelectMode={toggleSelectMode}
-          selectedCount={selectedIds.size}
-        />
-        {newEmailCount > 0 && (
-          <NewEmailBanner
-            count={newEmailCount}
-            emails={newEmails}
-            onDismiss={dismiss}
-          />
-        )}
-        <EmailList
-          emails={emails}
-          isLoading={isLoading}
-          isSearch={!!searchQuery}
-          selectMode={selectMode}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
+  // Mobile: single-pane at a time
+  if (selectedEmail && !isComposeOpen) {
+    if (selectedDraft) {
+      return (
+        <div className="dark flex h-screen w-full overflow-hidden bg-background p-4">
+          <Suspense fallback={null}>
+            <EmailCompose
+              key={selectedDraft.id}
+              embedded
+              initialDraftId={selectedDraft.id}
+              initialData={{
+                mode: selectedDraft.mode || "new",
+                to: selectedDraft.to.join(", "),
+                cc: selectedDraft.cc.join(", "),
+                subject: selectedDraft.subject,
+                body: selectedDraft.body,
+                thread_id: selectedDraft.thread_id ?? undefined,
+                in_reply_to: selectedDraft.in_reply_to ?? undefined,
+                references: selectedDraft.references ?? undefined,
+              }}
+              onClose={handleCloseDetail}
+              onSent={handleDraftSent}
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    return (
+      <div className="dark flex h-screen w-full overflow-hidden bg-background">
+        <ThreadDisplay
+          key={selectedEmail.threadId ?? selectedEmail.id}
+          emailId={selectedEmail.id}
+          threadId={selectedEmail.threadId}
+          provider={selectedEmail.provider}
+          onClose={handleCloseDetail}
+          onActionComplete={handleActionComplete}
+          onToggleStar={handleToggleStar}
+          removeEmails={removeEmails}
         />
       </div>
+    );
+  }
+
+  return (
+    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+      <MailSidebar />
+      <div className="flex flex-1 min-w-0 p-1 pl-0">
+        <div className="flex-1 min-w-0">
+          <div className="h-full overflow-hidden rounded-xl bg-background">
+            <MailList
+              {...mailListProps}
+            />
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function InboxPage() {
+  return (
+    <Suspense>
+      <InboxContent />
+    </Suspense>
   );
 }

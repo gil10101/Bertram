@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import type { Meeting } from "@/types/meeting";
 import { getProviders, PROVIDER_COLORS } from "./meeting-card";
 
-type CalendarView = "week" | "month";
+type CalendarView = "day" | "workweek" | "week" | "month";
+
+const VIEW_LABELS: Record<CalendarView, string> = {
+  day: "Today",
+  workweek: "Work Week",
+  week: "Week",
+  month: "Month",
+};
 
 interface MeetingCalendarProps {
   meetings: Meeting[];
@@ -59,49 +66,50 @@ function getTimeSlots() {
   return slots;
 }
 
-// --- Week View ---
+// --- Time Grid View (shared for day, workweek, week) ---
 
-function WeekView({
+function TimeGridView({
   meetings,
-  weekStart,
+  days,
   onMeetingClick,
 }: {
   meetings: Meeting[];
-  weekStart: Date;
+  days: Date[];
   onMeetingClick?: (meeting: Meeting) => void;
 }) {
   const today = new Date();
   const timeSlots = useMemo(() => getTimeSlots(), []);
+  const colCount = days.length;
 
-  const weekDays = useMemo(() => {
-    const days: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      days.push(d);
-    }
-    return days;
-  }, [weekStart]);
+  // Current time indicator — updates every minute
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes() - HOUR_START * 60;
+  const nowPx = nowMinutes * PX_PER_MINUTE;
+  const showIndicator = nowMinutes >= 0 && nowMinutes <= TOTAL_MINUTES;
 
   const meetingsByDay = useMemo(() => {
     const map = new Map<number, Meeting[]>();
-    for (let i = 0; i < 7; i++) map.set(i, []);
+    for (let i = 0; i < colCount; i++) map.set(i, []);
     for (const m of meetings) {
       const start = new Date(m.start_time);
-      for (let i = 0; i < 7; i++) {
-        if (isSameDay(start, weekDays[i])) {
+      for (let i = 0; i < colCount; i++) {
+        if (isSameDay(start, days[i])) {
           map.get(i)!.push(m);
           break;
         }
       }
     }
     return map;
-  }, [meetings, weekDays]);
+  }, [meetings, days, colCount]);
 
   return (
     <div className="flex overflow-hidden rounded-b-lg">
       {/* Time gutter */}
-      <div className="w-16 flex-shrink-0 border-r border-border bg-muted/30">
+      <div className="relative w-16 flex-shrink-0 border-r border-border bg-muted/30">
         {timeSlots.map((label, i) => (
           <div
             key={label}
@@ -111,11 +119,20 @@ function WeekView({
             <span className="relative -top-2 text-[10px] text-muted-foreground">{label}</span>
           </div>
         ))}
+        {/* Current time marker in gutter */}
+        {showIndicator && (
+          <div
+            className="pointer-events-none absolute right-0 z-20 flex items-center"
+            style={{ top: `${nowPx}px` }}
+          >
+            <div className="h-[2px] w-3 bg-primary" />
+          </div>
+        )}
       </div>
 
       {/* Day columns */}
-      <div className="grid flex-1 grid-cols-7">
-        {weekDays.map((day, dayIdx) => {
+      <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}>
+        {days.map((day, dayIdx) => {
           const isToday = isSameDay(day, today);
           const dayMeetings = meetingsByDay.get(dayIdx) ?? [];
 
@@ -173,6 +190,17 @@ function WeekView({
                   </div>
                 );
               })}
+
+              {/* Current time indicator */}
+              {isToday && showIndicator && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
+                  style={{ top: `${nowPx}px` }}
+                >
+                  <div className="h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-primary" />
+                  <div className="h-[2px] flex-1 bg-primary" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -279,6 +307,37 @@ function MonthView({
   );
 }
 
+// --- Helpers for building day arrays ---
+
+function getWorkWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  // Go back to Monday (day 1). If Sunday (0), go back 6 days.
+  const diff = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function buildDays(view: CalendarView, anchor: Date): Date[] {
+  if (view === "day") return [new Date(anchor)];
+  if (view === "workweek") {
+    const start = getWorkWeekStart(anchor);
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }
+  // "week"
+  const start = getWeekStart(anchor);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+}
+
 // --- Main Calendar Component ---
 
 export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarProps) {
@@ -286,9 +345,27 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [view, setView] = useState<CalendarView>("week");
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(today));
+  const [anchor, setAnchor] = useState(() => new Date(today));
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const goToPrev = () => {
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
+
+  const days = useMemo(() => (view === "month" ? [] : buildDays(view, anchor)), [view, anchor]);
+
+  const stepSize = view === "day" ? 1 : view === "workweek" ? 7 : 7;
+
+  const goToPrev = useCallback(() => {
     if (view === "month") {
       if (viewMonth === 0) {
         setViewMonth(11);
@@ -297,15 +374,15 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
         setViewMonth((m) => m - 1);
       }
     } else {
-      setWeekStart((ws) => {
-        const d = new Date(ws);
-        d.setDate(d.getDate() - 7);
+      setAnchor((a) => {
+        const d = new Date(a);
+        d.setDate(d.getDate() - stepSize);
         return d;
       });
     }
-  };
+  }, [view, viewMonth, stepSize]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (view === "month") {
       if (viewMonth === 11) {
         setViewMonth(0);
@@ -314,31 +391,46 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
         setViewMonth((m) => m + 1);
       }
     } else {
-      setWeekStart((ws) => {
-        const d = new Date(ws);
-        d.setDate(d.getDate() + 7);
+      setAnchor((a) => {
+        const d = new Date(a);
+        d.setDate(d.getDate() + stepSize);
         return d;
       });
     }
-  };
+  }, [view, viewMonth, stepSize]);
 
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     const now = new Date();
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth());
-    setWeekStart(getWeekStart(now));
-  };
+    setAnchor(new Date(now));
+  }, []);
 
-  const weekEnd = useMemo(() => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + 6);
-    return d;
-  }, [weekStart]);
+  const selectView = useCallback((v: CalendarView) => {
+    if (v === "day") {
+      // "Today" — jump to today and switch to day view
+      goToToday();
+    }
+    setView(v);
+    setDropdownOpen(false);
+  }, [goToToday]);
 
-  const headerLabel =
-    view === "month"
-      ? `${MONTH_NAMES[viewMonth]} ${viewYear}`
-      : `${weekStart.toLocaleDateString([], { month: "short", day: "numeric" })} – ${weekEnd.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`;
+  // Header label
+  const headerLabel = useMemo(() => {
+    if (view === "month") {
+      return `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    }
+    if (view === "day" && days.length === 1) {
+      return days[0].toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    }
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (!first || !last) return "";
+    return `${first.toLocaleDateString([], { month: "short", day: "numeric" })} – ${last.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`;
+  }, [view, days, viewMonth, viewYear]);
+
+  // Day labels for time-grid views
+  const dayLabelsForGrid = view !== "month" && days.length > 0;
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -357,46 +449,43 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <h3 className="text-sm font-semibold tracking-tight">{headerLabel}</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-foreground">{headerLabel}</h3>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* View dropdown */}
+        <div className="relative" ref={dropdownRef}>
           <button
-            onClick={goToToday}
-            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={() => setDropdownOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            Today
+            {VIEW_LABELS[view]}
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", dropdownOpen && "rotate-180")} />
           </button>
-          <div className="flex rounded-md border border-border">
-            <button
-              onClick={() => setView("week")}
-              className={cn(
-                "px-2.5 py-1 text-xs font-medium transition-colors",
-                view === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-              )}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setView("month")}
-              className={cn(
-                "px-2.5 py-1 text-xs font-medium transition-colors",
-                view === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-              )}
-            >
-              Month
-            </button>
-          </div>
+          {dropdownOpen && (
+            <div className="absolute right-0 z-30 mt-1 min-w-[140px] overflow-hidden rounded-md border border-border bg-card shadow-lg">
+              {(Object.keys(VIEW_LABELS) as CalendarView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => selectView(v)}
+                  className={cn(
+                    "flex w-full items-center px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-accent",
+                    v === view ? "bg-primary/10 text-primary" : "text-foreground",
+                  )}
+                >
+                  {VIEW_LABELS[v]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Day labels (shared for both views in week mode) */}
-      {view === "week" && (
-        <div className="grid grid-cols-[4rem_1fr]">
+      {/* Day labels for time-grid views */}
+      {dayLabelsForGrid && (
+        <div className="grid" style={{ gridTemplateColumns: `4rem 1fr` }}>
           <div />
-          <div className="grid grid-cols-7 border-b border-border">
-            {Array.from({ length: 7 }).map((_, i) => {
-              const d = new Date(weekStart);
-              d.setDate(d.getDate() + i);
+          <div className="grid border-b border-border" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+            {days.map((d, i) => {
               const isToday = isSameDay(d, today);
               return (
                 <div
@@ -406,7 +495,7 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
                     isToday ? "font-bold text-primary" : "font-medium text-muted-foreground",
                   )}
                 >
-                  <div>{DAY_LABELS[i]}</div>
+                  <div>{DAY_LABELS[d.getDay()]}</div>
                   <div className={cn(
                     "mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs",
                     isToday && "bg-primary text-primary-foreground",
@@ -431,9 +520,9 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
       )}
 
       {/* Calendar body */}
-      <div className={cn("pr-4", view === "week" && "max-h-[600px] overflow-y-auto")}>
-        {view === "week" ? (
-          <WeekView meetings={meetings} weekStart={weekStart} onMeetingClick={onMeetingClick} />
+      <div className={cn("pr-4", view !== "month" && "max-h-[600px] overflow-y-auto")}>
+        {view !== "month" ? (
+          <TimeGridView meetings={meetings} days={days} onMeetingClick={onMeetingClick} />
         ) : (
           <MonthView
             meetings={meetings}

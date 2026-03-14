@@ -38,7 +38,7 @@ export function Marquee() {
     const firstSpan = track.children[0] as HTMLElement;
 
     function tick() {
-      pos -= 0.5;
+      pos -= 0.35;
       if (firstSpan && pos <= -(firstSpan.offsetWidth + 64)) {
         pos = 0;
       }
@@ -51,7 +51,13 @@ export function Marquee() {
   }, []);
 
   return (
-    <section className="overflow-hidden border-b border-t border-charcoal-400/30 py-8">
+    <section
+      className="overflow-hidden border-b border-t border-charcoal-400/30 py-8"
+      style={{
+        maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+        WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+      }}
+    >
       <div
         ref={trackRef}
         className="flex gap-16 whitespace-nowrap text-[clamp(1rem,2vw,1.6rem)] font-light tracking-[-0.01em] text-dust-400 will-change-transform"

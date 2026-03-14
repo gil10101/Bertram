@@ -26,9 +26,9 @@ class AggregateEmailProvider(EmailProvider):
                 total += res
         return total
 
-    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox") -> list[dict]:
+    async def list_emails(self, page: int = 1, per_page: int = 20, q: str = "", folder: str = "inbox", category: str = "") -> list[dict]:
         results = await asyncio.gather(
-            *(p.list_emails(page=page, per_page=per_page, q=q, folder=folder) for p in self._providers),
+            *(p.list_emails(page=page, per_page=per_page, q=q, folder=folder, category=category) for p in self._providers),
             return_exceptions=True,
         )
         merged: list[dict] = []

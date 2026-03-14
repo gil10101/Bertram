@@ -1,11 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "@/lib/gsap";
+import { AnimatedBeam } from "./animated-beam";
+
+const ctaBeamPaths = [
+  { id: "c1", from: "cn1", to: "cn3", delay: 0, duration: 7, gradient: ["#eb5e28", "#9333ea"] as [string, string] },
+  { id: "c2", from: "cn2", to: "cn4", delay: 1.5, duration: 6, gradient: ["#9333ea", "#eb5e28"] as [string, string] },
+  { id: "c3", from: "cn3", to: "cn5", delay: 3, duration: 8, gradient: ["#f59e0b", "#9333ea"] as [string, string] },
+];
 
 export function CtaSection() {
   const ref = useRef<HTMLElement>(null);
+  const beamContainerRef = useRef<HTMLDivElement>(null);
+  const [beamMounted, setBeamMounted] = useState(false);
+
+  useEffect(() => {
+    setBeamMounted(true);
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -31,6 +44,27 @@ export function CtaSection() {
     >
       <div className="absolute left-1/2 -top-[30%] h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-paprika opacity-[0.06] blur-[100px]" />
 
+      {/* Ambient beam network */}
+      <div
+        ref={beamContainerRef}
+        className="pointer-events-none absolute inset-0"
+      >
+        <div data-beam="cn1" className="absolute left-[10%] top-[30%] h-2 w-2" />
+        <div data-beam="cn2" className="absolute right-[15%] top-[20%] h-2 w-2" />
+        <div data-beam="cn3" className="absolute left-[45%] top-[55%] h-2 w-2" />
+        <div data-beam="cn4" className="absolute left-[20%] bottom-[20%] h-2 w-2" />
+        <div data-beam="cn5" className="absolute right-[10%] bottom-[25%] h-2 w-2" />
+        {beamMounted && beamContainerRef.current && (
+          <AnimatedBeam
+            containerRef={beamContainerRef}
+            paths={ctaBeamPaths}
+            opacity={0.08}
+            strokeWidth={1.5}
+            curvature={50}
+          />
+        )}
+      </div>
+
       <h2 className="relative z-[1] text-[clamp(3rem,9vw,9rem)] font-light leading-[0.9] tracking-[-0.04em] text-floral">
         <span className="block overflow-hidden">
           <span
@@ -47,7 +81,7 @@ export function CtaSection() {
             className="block"
             style={{ transform: "translateY(110%)" }}
           >
-            <span className="italic text-paprika">inbox</span> today.
+            <span className="font-serif italic text-paprika">inbox</span> today.
           </span>
         </span>
       </h2>

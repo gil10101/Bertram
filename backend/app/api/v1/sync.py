@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Query
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 POLL_INTERVAL = 30  # seconds
+MAX_SESSION_DURATION = 1800
 
 
 async def _resolve_provider(user_id: str, db: object):
@@ -48,17 +50,20 @@ async def _event_generator(user_id: str, db: object) -> AsyncGenerator[str, None
     """Yield SSE events when new emails are detected."""
     known_ids: set[str] = set()
     first_poll = True
+    consecutive_errors = 0
 
     # Resolve provider once per SSE session (not every poll)
     provider = await _resolve_provider(user_id, db)
 
-    while True:
+    session_start = time.monotonic()
+    while (time.monotonic() - session_start) < MAX_SESSION_DURATION:
         try:
             # Lightweight unread count — single API call per provider
             unread_count = await provider.get_unread_count()
             # Small fetch for new-email detection only
             recent = await provider.list_emails(page=1, per_page=10)
             current_ids = {e["id"] for e in recent}
+            consecutive_errors = 0  # reset on success
 
             if first_poll:
                 known_ids = current_ids
@@ -93,10 +98,16 @@ async def _event_generator(user_id: str, db: object) -> AsyncGenerator[str, None
         except asyncio.CancelledError:
             return
         except Exception:
-            logger.exception("Sync poll failed")
+            consecutive_errors += 1
+            logger.exception("Sync poll failed (consecutive: %d)", consecutive_errors)
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': 'Poll failed'})}\n\n"
 
-        await asyncio.sleep(POLL_INTERVAL)
+        # Back off when errors accumulate (30s, 60s, 120s, max 5min)
+        backoff = min(POLL_INTERVAL * (2 ** consecutive_errors), 300) if consecutive_errors else POLL_INTERVAL
+        await asyncio.sleep(backoff)
+
+    # Session duration exceeded — hint client to reconnect
+    yield f"event: timeout\ndata: {json.dumps({'type': 'timeout'})}\n\n"
 
 
 @router.get("/stream")

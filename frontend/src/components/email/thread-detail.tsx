@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Paperclip, Download, FileText, Image, Film, Music, Archive, File, Eye, X, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Paperclip, Download, FileText, Image as ImageIcon, Film, Music, Archive, File, Eye, X, Trash2, Tag } from "lucide-react";
+import { LabelPicker } from "@/components/email/label-picker";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { createApiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { AiSummary } from "@/components/ai/ai-summary";
@@ -63,7 +65,9 @@ function EmailBody({ html, text }: { html?: string; text: string }) {
   const resizeIframe = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentDocument?.body) return;
-    iframe.style.height = iframe.contentDocument.body.scrollHeight + 32 + "px";
+    // Reset to 0 first to measure true content height and prevent feedback loop
+    iframe.style.height = "0";
+    iframe.style.height = iframe.contentDocument.body.scrollHeight + "px";
   }, []);
 
   useEffect(() => {
@@ -84,7 +88,7 @@ function EmailBody({ html, text }: { html?: string; text: string }) {
   img { max-width: 100%; height: auto; }
   table { max-width: 100% !important; }
   pre, code { white-space: pre-wrap; max-width: 100%; overflow-x: auto; }
-</style></head><body>${html}</body></html>`);
+</style></head><body>${sanitizeHtml(html)}</body></html>`);
     doc.close();
 
     resizeIframe();
@@ -131,7 +135,7 @@ function getFileTypeStyle(contentType: string): { bg: string; text: string; labe
 
 function AttachmentIcon({ contentType }: { contentType: string }) {
   const cls = "h-5 w-5 shrink-0";
-  if (contentType.startsWith("image/")) return <Image className={cls} />;
+  if (contentType.startsWith("image/")) return <ImageIcon className={cls} />;
   if (contentType.startsWith("video/")) return <Film className={cls} />;
   if (contentType.startsWith("audio/")) return <Music className={cls} />;
   if (contentType === "application/pdf" || contentType.includes("document") || contentType.includes("text"))
@@ -431,7 +435,6 @@ function MessageCard({
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                URL.revokeObjectURL(previewAtt.blobUrl);
               }}
             />
           )}
@@ -446,6 +449,14 @@ export function ThreadDetail({ threadId, provider, embedded, onClose, onActionCo
   const router = useRouter();
   const { thread, isLoading, error } = useThread(threadId, provider);
   const [showDraft, setShowDraft] = useState(false);
+  const [threadLabels, setThreadLabels] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (thread) {
+      const last = thread.messages[thread.messages.length - 1];
+      if (last) setThreadLabels(last.labels ?? []);
+    }
+  }, [thread]);
 
   useEffect(() => {
     if (!thread) return;
@@ -515,6 +526,16 @@ export function ThreadDetail({ threadId, provider, embedded, onClose, onActionCo
           </Button>
         )}
       </div>
+
+      {/* Labels */}
+      {lastMessage && (
+        <LabelPicker
+          emailId={lastMessage.id}
+          provider={provider}
+          currentLabels={threadLabels}
+          onLabelsChange={setThreadLabels}
+        />
+      )}
 
       {/* AI Summary — at top for quick access */}
       {lastMessage && (

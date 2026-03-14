@@ -89,7 +89,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
   };
 
   const inputClass =
-    "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <form
@@ -97,7 +97,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
       className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">
+        <h3 className="text-sm font-semibold text-foreground">
           {editingMeeting ? "Edit Meeting" : "Schedule New Meeting"}
         </h3>
         {onCancel && (
@@ -113,7 +113,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
 
       {/* Title */}
       <div>
-        <label htmlFor="meeting-title" className="mb-1 block text-sm font-medium">
+        <label htmlFor="meeting-title" className="mb-1 block text-sm font-medium text-foreground">
           Title
         </label>
         <input
@@ -130,7 +130,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
       {/* Date + Time */}
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label htmlFor="meeting-date" className="mb-1 block text-sm font-medium">
+          <label htmlFor="meeting-date" className="mb-1 block text-sm font-medium text-foreground">
             Date
           </label>
           <input
@@ -142,7 +142,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
           />
         </div>
         <div>
-          <label htmlFor="meeting-start" className="mb-1 block text-sm font-medium">
+          <label htmlFor="meeting-start" className="mb-1 block text-sm font-medium text-foreground">
             Start
           </label>
           <input
@@ -154,7 +154,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
           />
         </div>
         <div>
-          <label htmlFor="meeting-end" className="mb-1 block text-sm font-medium">
+          <label htmlFor="meeting-end" className="mb-1 block text-sm font-medium text-foreground">
             End
           </label>
           <input
@@ -169,7 +169,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
 
       {/* Location */}
       <div>
-        <label htmlFor="meeting-location" className="mb-1 block text-sm font-medium">
+        <label htmlFor="meeting-location" className="mb-1 block text-sm font-medium text-foreground">
           Location
         </label>
         <input
@@ -184,7 +184,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
 
       {/* Attendees */}
       <div>
-        <label htmlFor="meeting-attendee" className="mb-1 block text-sm font-medium">
+        <label htmlFor="meeting-attendee" className="mb-1 block text-sm font-medium text-foreground">
           Attendees
         </label>
         <div className="flex gap-2">
@@ -200,7 +200,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
           <button
             type="button"
             onClick={handleAddAttendee}
-            className="shrink-0 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+            className="shrink-0 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
           >
             Add
           </button>
@@ -210,7 +210,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
             {attendees.map((email) => (
               <span
                 key={email}
-                className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs"
+                className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground"
               >
                 {email}
                 <button
@@ -228,7 +228,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
 
       {/* Description */}
       <div>
-        <label htmlFor="meeting-desc" className="mb-1 block text-sm font-medium">
+        <label htmlFor="meeting-desc" className="mb-1 block text-sm font-medium text-foreground">
           Description
         </label>
         <textarea
@@ -260,7 +260,7 @@ export function MeetingForm({ onSubmit, editingMeeting, onCancel }: MeetingFormP
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
           >
             Cancel
           </button>

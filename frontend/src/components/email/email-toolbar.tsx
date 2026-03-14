@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, CheckSquare, ChevronLeft, ChevronRight, Mail, Trash2 } from "lucide-react";
+import { Archive, CheckSquare, ChevronLeft, ChevronRight, Loader2, Mail, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const KNOWN_LABELS: Record<string, string> = {
@@ -19,6 +19,7 @@ interface EmailToolbarProps {
   onArchive?: () => void;
   onDelete?: () => void;
   onAiPrioritize?: () => void;
+  isPrioritizing?: boolean;
   connectedProviders?: string[];
   activeProvider?: string;
   onProviderChange?: (provider: string) => void;
@@ -38,6 +39,7 @@ export function EmailToolbar({
   onArchive,
   onDelete,
   onAiPrioritize,
+  isPrioritizing = false,
   connectedProviders,
   activeProvider,
   onProviderChange,
@@ -156,10 +158,22 @@ export function EmailToolbar({
         )}
       </div>
 
-      <button type="button" className={cn(buttonClass, "inline-flex items-center gap-1.5")} onClick={onAiPrioritize}>
-        <span className="animate-text-shimmer bg-[length:250%_100%] bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(var(--foreground))_35%,hsl(var(--primary))_50%,hsl(var(--foreground))_65%)]">
-          AI Prioritize
-        </span>
+      <button
+        type="button"
+        className={cn(buttonClass, "inline-flex items-center gap-1.5")}
+        onClick={onAiPrioritize}
+        disabled={isPrioritizing}
+      >
+        {isPrioritizing ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="text-muted-foreground">Prioritizing…</span>
+          </>
+        ) : (
+          <span className="animate-text-shimmer bg-[length:250%_100%] bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(var(--foreground))_35%,hsl(var(--primary))_50%,hsl(var(--foreground))_65%)]">
+            AI Prioritize
+          </span>
+        )}
       </button>
 
       {showPagination && (

@@ -25,15 +25,15 @@ export function AiSummary({ emailId, provider }: AiSummaryProps) {
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex flex-1 items-center gap-2 text-left text-sm font-medium hover:bg-accent/50"
+          className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-foreground hover:bg-accent/50"
         >
-          <span>AI Summary</span>
+          <span className="text-foreground">AI Summary</span>
           <span className={cn("text-xs transition-transform", isOpen && "rotate-180")}>▼</span>
         </button>
         <button
           type="button"
           onClick={handleSummarize}
-          className="rounded px-2 py-1 text-xs font-medium text-paprika hover:bg-paprika/10"
+          className="rounded px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
         >
           Summarize
         </button>
@@ -50,7 +50,7 @@ export function AiSummary({ emailId, provider }: AiSummaryProps) {
           )}
           {error && <p className="text-sm text-destructive">{error.message}</p>}
           {data && !isLoading && (
-            <p className="text-sm">
+            <p className="text-sm text-foreground">
               <ProgressiveText text={data} />
             </p>
           )}

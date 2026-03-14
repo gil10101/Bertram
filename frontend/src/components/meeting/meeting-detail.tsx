@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   X,
@@ -42,6 +42,14 @@ export function MeetingDetail({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [attendeesExpanded, setAttendeesExpanded] = useState(false);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const start = new Date(meeting.start_time);
   const end = new Date(meeting.end_time);
   const dateStr = start.toLocaleDateString([], {
@@ -70,12 +78,12 @@ export function MeetingDetail({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="dark fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative z-10 flex w-full max-w-md flex-col overflow-y-auto bg-background shadow-xl">
+      <div className="relative z-10 flex w-full max-w-md flex-col overflow-y-auto bg-background text-foreground shadow-xl" role="dialog" aria-modal="true" aria-label={meeting.title}>
         {/* Header */}
         <div className="flex items-start justify-between border-b border-border p-5">
           <div className="flex-1 pr-4">

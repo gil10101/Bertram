@@ -1,9 +1,107 @@
 "use client";
 
 import Link from "next/link";
+import { Star, Tag, Users, Bell, MessageSquare, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { AiPriorityBadge } from "@/components/ai/ai-priority-badge";
 import type { Email } from "@/hooks/use-emails";
+
+const LABEL_CONFIG: Record<string, { icon: React.ReactNode; bg: string; label: string }> = {
+  important: {
+    icon: <Zap className="h-3.5 w-3.5 fill-white text-white" />,
+    bg: "bg-[#F59E0D]",
+    label: "Important",
+  },
+  promotions: {
+    icon: <Tag className="h-3.5 w-3.5 fill-white text-white" />,
+    bg: "bg-[#F43F5E]",
+    label: "Promotions",
+  },
+  personal: {
+    icon: <Star className="h-3.5 w-3.5 fill-white text-white" />,
+    bg: "bg-[#39AE4A]",
+    label: "Personal",
+  },
+  updates: {
+    icon: <Bell className="h-3.5 w-3.5 fill-white text-white" />,
+    bg: "bg-[#8B5CF6]",
+    label: "Updates",
+  },
+  social: {
+    icon: <Users className="h-3.5 w-3.5 text-white" />,
+    bg: "bg-[#2563EB]",
+    label: "Social",
+  },
+  forums: {
+    icon: <MessageSquare className="h-3.5 w-3.5 text-white" />,
+    bg: "bg-[#0D9488]",
+    label: "Forums",
+  },
+  starred: {
+    icon: <Star className="h-3.5 w-3.5 fill-white text-white" />,
+    bg: "bg-yellow-500",
+    label: "Starred",
+  },
+};
+
+const HIDDEN_LABELS = new Set(["unread", "inbox", "sent", "draft", "trash", "spam"]);
+
+function CategoryLabels({ labels }: { labels?: string[] }) {
+  if (!labels || labels.length === 0) return null;
+
+  const visible: { key: string; config: (typeof LABEL_CONFIG)[string] }[] = [];
+
+  for (const raw of labels) {
+    const normalized = raw.toLowerCase().replace(/^category_/i, "");
+    if (HIDDEN_LABELS.has(normalized)) continue;
+    const config = LABEL_CONFIG[normalized];
+    if (config) visible.push({ key: raw, config });
+  }
+
+  if (visible.length === 0) return null;
+
+  return (
+    <TooltipProvider>
+      <div className="flex">
+        {visible.map(({ key, config }, i) => (
+          <Tooltip key={`${key}-${i}`}>
+            <TooltipTrigger asChild>
+              <Badge
+                className={cn(
+                  "rounded-md border-2 border-background p-1 transition-transform",
+                  config.bg,
+                  i > 0 && "-ml-1.5",
+                )}
+              >
+                {config.icon}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">{config.label}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function formatEmailDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
 
 interface EmailListItemProps {
   email: Email;
@@ -12,24 +110,26 @@ interface EmailListItemProps {
   isSelected?: boolean;
   onToggleSelect?: (emailId: string) => void;
   isActive?: boolean;
+  isFocused?: boolean;
   onSelect?: (email: Email) => void;
+  onToggleStar?: (emailId: string, isStarred: boolean) => void;
 }
 
-export function EmailListItem({ email, threadMessageCount, selectMode, isSelected, onToggleSelect, isActive, onSelect }: EmailListItemProps) {
+export function EmailListItem({ email, threadMessageCount, selectMode, isSelected, onToggleSelect, isActive, isFocused, onSelect, onToggleStar }: EmailListItemProps) {
   const href = email.thread_id
     ? `/thread/${email.thread_id}${email.provider ? `?provider=${email.provider}` : ""}`
     : `/email/${email.id}${email.provider ? `?provider=${email.provider}` : ""}`;
 
   const inner = (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* Sender avatar */}
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
           {(email.sender.name || email.sender.email).charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
+          {/* Line 1: sender name */}
           <div className="flex items-center gap-2">
-            {/* Unread dot */}
             {!email.is_read && (
               <span className="h-2 w-2 shrink-0 rounded-full bg-paprika" />
             )}
@@ -41,17 +141,33 @@ export function EmailListItem({ email, threadMessageCount, selectMode, isSelecte
             >
               {email.sender.name || email.sender.email}
             </span>
-            {email.priority && <AiPriorityBadge priority={email.priority} />}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <p
-              className={cn(
-                "truncate text-sm",
-                email.is_read ? "text-muted-foreground" : "font-semibold text-foreground",
-              )}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleStar?.(email.id, !email.is_starred);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleStar?.(email.id, !email.is_starred);
+                }
+              }}
+              className="shrink-0 rounded p-0.5 transition-colors hover:bg-accent"
+              title={email.is_starred ? "Unstar" : "Star"}
             >
-              {email.subject || "(No subject)"}
-            </p>
+              <Star
+                className={cn(
+                  "h-3.5 w-3.5",
+                  email.is_starred
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-muted-foreground/40 hover:text-muted-foreground",
+                )}
+              />
+            </div>
             {threadMessageCount != null && threadMessageCount > 1 && (
               <span
                 className={cn(
@@ -62,49 +178,48 @@ export function EmailListItem({ email, threadMessageCount, selectMode, isSelecte
                 ({threadMessageCount})
               </span>
             )}
+            {email.priority && <AiPriorityBadge priority={email.priority} />}
           </div>
+          {/* Line 2: subject */}
           <p
             className={cn(
-              "truncate text-xs",
-              email.is_read ? "text-muted-foreground/60" : "text-muted-foreground",
+              "truncate text-sm",
+              email.is_read ? "text-muted-foreground" : "font-medium text-foreground",
             )}
           >
-            {email.snippet}
+            {email.subject || "(No subject)"}
           </p>
         </div>
       </div>
-      <div className="shrink-0 text-right">
+      {/* Right side: date, star, category badges */}
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <span
           className={cn(
-            "block text-xs",
+            "text-xs whitespace-nowrap",
             email.is_read ? "text-muted-foreground/60" : "text-muted-foreground",
           )}
         >
-          {new Date(email.received_at).toLocaleDateString()}
+          {formatEmailDate(email.received_at)}
         </span>
-        <span
-          className={cn(
-            "block text-[11px]",
-            email.is_read ? "text-muted-foreground/35" : "text-muted-foreground/50",
-          )}
-        >
-          {new Date(email.received_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-        </span>
+        <CategoryLabels labels={email.labels} />
       </div>
     </div>
   );
 
   return (
     <div
+      data-email-id={email.id}
       className={cn(
-        "flex items-center border-l-[3px] border-l-transparent transition-colors hover:bg-accent/50",
+        "flex items-center border-l-[3px] border-l-border transition-colors hover:bg-accent/50",
         isActive
-          ? "bg-accent border-l-primary"
-          : isSelected
-            ? "bg-accent/40"
-            : email.is_read
-              ? "bg-muted/30 opacity-70"
-              : "bg-card",
+          ? "bg-accent !border-l-primary"
+          : isFocused
+            ? "bg-accent/60 !border-l-paprika/50"
+            : isSelected
+              ? "bg-accent/40"
+              : email.is_read
+                ? "bg-muted/30 opacity-70"
+                : "bg-card",
       )}
     >
       {/* Checkbox with animated width */}

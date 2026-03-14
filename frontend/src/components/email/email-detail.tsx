@@ -11,8 +11,10 @@ import { AiDraft } from "@/components/ai/ai-draft";
 import { AiChat } from "@/components/ai/ai-chat";
 import { storeComposeData } from "./email-compose";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@/lib/sanitize";
 import type { ComposeMode, EmailAttachment } from "@/types/email";
-import { Reply, ReplyAll, Forward, Paperclip, Download, FileText, Image, Film, Music, Archive as ArchiveIcon, Trash2, File, Eye, X } from "lucide-react";
+import { Reply, ReplyAll, Forward, Paperclip, Download, FileText, Image as ImageIcon, Film, Music, Archive as ArchiveIcon, Trash2, File, Eye, X, Star, Tag, Printer } from "lucide-react";
+import { LabelPicker } from "@/components/email/label-picker";
 import {
   Dialog,
   DialogContent,
@@ -109,7 +111,9 @@ function EmailBody({ html, text }: { html?: string; text: string }) {
   const resizeIframe = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentDocument?.body) return;
-    iframe.style.height = iframe.contentDocument.body.scrollHeight + 32 + "px";
+    // Reset to 0 first to measure true content height and prevent feedback loop
+    iframe.style.height = "0";
+    iframe.style.height = iframe.contentDocument.body.scrollHeight + "px";
   }, []);
 
   useEffect(() => {
@@ -130,7 +134,7 @@ function EmailBody({ html, text }: { html?: string; text: string }) {
   img { max-width: 100%; height: auto; }
   table { max-width: 100% !important; }
   pre, code { white-space: pre-wrap; max-width: 100%; overflow-x: auto; }
-</style></head><body>${html}</body></html>`);
+</style></head><body>${sanitizeHtml(html)}</body></html>`);
     doc.close();
 
     resizeIframe();
@@ -177,7 +181,7 @@ function getFileTypeStyle(contentType: string): { bg: string; text: string; labe
 
 function AttachmentIcon({ contentType }: { contentType: string }) {
   const cls = "h-5 w-5 shrink-0";
-  if (contentType.startsWith("image/")) return <Image className={cls} />;
+  if (contentType.startsWith("image/")) return <ImageIcon className={cls} />;
   if (contentType.startsWith("video/")) return <Film className={cls} />;
   if (contentType.startsWith("audio/")) return <Music className={cls} />;
   if (contentType === "application/pdf" || contentType.includes("document") || contentType.includes("text"))
@@ -381,6 +385,133 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
     router.push("/compose");
   };
 
+  const printMail = () => {
+    if (!email) return;
+    try {
+      const printFrame = document.createElement("iframe");
+      printFrame.style.position = "absolute";
+      printFrame.style.top = "-9999px";
+      printFrame.style.left = "-9999px";
+      printFrame.style.width = "0px";
+      printFrame.style.height = "0px";
+      printFrame.style.border = "none";
+      document.body.appendChild(printFrame);
+
+      const escapeHtml = (str: string) =>
+        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      const userLabels = email.labels
+        .filter((l) => !SYSTEM_LABELS.has(l))
+        .map((l) => readableLabel(l));
+
+      const printContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Print Email - ${escapeHtml(email.subject || "No Subject")}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; line-height: 1.5; color: #333; background: white; padding: 20px; font-size: 12px; }
+    .email-container { max-width: 100%; margin: 0 auto; }
+    .email-title { font-size: 18px; font-weight: bold; color: #000; margin-bottom: 15px; word-wrap: break-word; }
+    .email-meta { margin-bottom: 20px; }
+    .meta-row { margin-bottom: 5px; display: flex; align-items: flex-start; }
+    .meta-label { font-weight: bold; min-width: 60px; color: #333; margin-right: 10px; }
+    .meta-value { flex: 1; word-wrap: break-word; color: #333; }
+    .separator { width: 100%; height: 1px; background: #ddd; margin: 20px 0; }
+    .email-content { word-wrap: break-word; overflow-wrap: break-word; font-size: 12px; line-height: 1.6; }
+    .email-content img { max-width: 100% !important; height: auto !important; display: block; margin: 10px 0; }
+    .email-content table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .email-content td, .email-content th { padding: 6px; text-align: left; font-size: 11px; }
+    .email-content a { color: #0066cc; text-decoration: underline; }
+    .attachments-title { font-size: 14px; font-weight: bold; color: #000; margin-bottom: 10px; margin-top: 25px; }
+    .attachment-item { margin-bottom: 5px; font-size: 11px; padding: 3px 0; }
+    .attachment-name { font-weight: 500; color: #333; }
+    .attachment-size { color: #666; font-size: 10px; }
+    .label-badge { display: inline-block; padding: 2px 6px; background: #f5f5f5; color: #333; font-size: 10px; margin-right: 5px; margin-bottom: 3px; }
+    @media print {
+      body { margin: 0; padding: 15px; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .separator { background: #000 !important; }
+      .email-content a { color: #000 !important; }
+      .label-badge { background: #f0f0f0 !important; border: 1px solid #ccc; }
+      * { border: none !important; box-shadow: none !important; }
+      .email-header { page-break-after: avoid; }
+      .attachments-section { page-break-inside: avoid; }
+    }
+    @page { margin: 0.5in; size: A4; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1 class="email-title">${escapeHtml(email.subject || "No Subject")}</h1>
+      ${userLabels.length > 0 ? `<div style="margin-bottom:10px">${userLabels.map((l) => `<span class="label-badge">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
+      <div class="email-meta">
+        <div class="meta-row">
+          <span class="meta-label">From:</span>
+          <span class="meta-value">${escapeHtml(email.sender.name || "")} &lt;${escapeHtml(email.sender.email)}&gt;</span>
+        </div>
+        ${email.recipients.length > 0 ? `<div class="meta-row"><span class="meta-label">To:</span><span class="meta-value">${email.recipients.map((r) => `${escapeHtml(r.name || "")} &lt;${escapeHtml(r.email)}&gt;`).join(", ")}</span></div>` : ""}
+        ${email.cc_recipients && email.cc_recipients.length > 0 ? `<div class="meta-row"><span class="meta-label">CC:</span><span class="meta-value">${email.cc_recipients.map((r) => `${escapeHtml(r.name || "")} &lt;${escapeHtml(r.email)}&gt;`).join(", ")}</span></div>` : ""}
+        <div class="meta-row">
+          <span class="meta-label">Date:</span>
+          <span class="meta-value">${formatDate(email.received_at)}</span>
+        </div>
+      </div>
+    </div>
+    <div class="separator"></div>
+    <div class="email-body">
+      <div class="email-content">${email.body_html ? sanitizeHtml(email.body_html) : escapeHtml(email.body).replace(/\n/g, "<br>")}</div>
+    </div>
+    ${email.attachments && email.attachments.length > 0 ? `
+    <div class="attachments-section">
+      <h2 class="attachments-title">Attachments (${email.attachments.length})</h2>
+      ${email.attachments.map((att) => `<div class="attachment-item"><span class="attachment-name">${escapeHtml(att.filename)}</span>${att.size ? ` - <span class="attachment-size">${formatFileSize(att.size)}</span>` : ""}</div>`).join("")}
+    </div>` : ""}
+  </div>
+</body>
+</html>`;
+
+      const frameDoc = printFrame.contentDocument || printFrame.contentWindow?.document;
+      if (!frameDoc) {
+        document.body.removeChild(printFrame);
+        return;
+      }
+
+      frameDoc.open();
+      frameDoc.write(printContent);
+      frameDoc.close();
+
+      let printed = false;
+      printFrame.onload = () => {
+        if (!printed) {
+          printed = true;
+          printFrame.contentWindow?.print();
+        }
+        setTimeout(() => {
+          document.body.removeChild(printFrame);
+        }, 1000);
+      };
+
+      // Fallback for browsers that don't fire onload for about:blank iframes
+      setTimeout(() => {
+        try {
+          if (!printed) {
+            printed = true;
+            printFrame.contentWindow?.print();
+          }
+        } catch { /* already printed */ }
+        setTimeout(() => {
+          if (printFrame.parentNode) {
+            document.body.removeChild(printFrame);
+          }
+        }, 1000);
+      }, 500);
+    } catch {
+      window.print();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -400,7 +531,12 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
     );
   }
 
-  const visibleLabels = email.labels.filter(l => !SYSTEM_LABELS.has(l));
+  const handleLabelsChange = (newLabels: string[]) => {
+    setEmail((prev) => prev ? { ...prev, labels: [
+      ...prev.labels.filter((l) => SYSTEM_LABELS.has(l)),
+      ...newLabels.filter((l) => !SYSTEM_LABELS.has(l)),
+    ] } : prev);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -408,8 +544,32 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const newStarred = !email.is_starred;
+                setEmail((prev) => prev ? { ...prev, is_starred: newStarred } : prev);
+                try {
+                  const api = createApiClient(getToken);
+                  const qs = provider ? `?provider=${provider}` : "";
+                  await api.patch(`/emails/${id}${qs}`, { is_starred: newStarred });
+                } catch {
+                  setEmail((prev) => prev ? { ...prev, is_starred: !newStarred } : prev);
+                }
+              }}
+              className="shrink-0 rounded p-0.5 transition-colors hover:bg-accent"
+              title={email.is_starred ? "Unstar" : "Star"}
+            >
+              <Star
+                className={cn(
+                  "h-5 w-5",
+                  email.is_starred
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-muted-foreground/40 hover:text-muted-foreground",
+                )}
+              />
+            </button>
             <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
-              {email.is_starred && <span className="mr-1 text-yellow-500">&#9733;</span>}
               {email.subject || "(No subject)"}
             </h1>
             {!email.is_read && (
@@ -418,6 +578,15 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={printMail}
+            className="gap-1.5"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Print
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -485,18 +654,15 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
             <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</span>
             <span>{formatDate(email.received_at)}</span>
           </div>
-          {visibleLabels.length > 0 && (
-            <div className="flex gap-2">
-              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">Labels</span>
-              <div className="flex flex-wrap gap-1">
-                {visibleLabels.map((l) => (
-                  <Badge key={l} variant="outline" className="text-xs">
-                    {SYSTEM_LABELS.has(l) ? readableLabel(l) : l}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">Labels</span>
+            <LabelPicker
+              emailId={email.id}
+              provider={provider}
+              currentLabels={email.labels}
+              onLabelsChange={handleLabelsChange}
+            />
+          </div>
         </div>
       </div>
 
@@ -645,7 +811,6 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
             document.body.appendChild(a);
             a.click();
             a.remove();
-            URL.revokeObjectURL(previewAtt.blobUrl);
           }}
         />
       )}

@@ -6,13 +6,13 @@ export function LandingFooter() {
       <span>&copy; 2026 Bertram</span>
       <div className="flex gap-8">
         <Link
-          href="#"
+          href="/privacy"
           className="text-dust-500 transition-colors hover:text-floral"
         >
           Privacy
         </Link>
         <Link
-          href="#"
+          href="/terms"
           className="text-dust-500 transition-colors hover:text-floral"
         >
           Terms

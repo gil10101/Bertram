@@ -52,3 +52,7 @@ backend/migrations/
 frontend/skills/
 backend/tests/
 TODO*
+
+*.docx
+*analysis*
+*design*

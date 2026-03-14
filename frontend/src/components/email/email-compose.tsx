@@ -5,9 +5,11 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { Paperclip, X, FileText, Image, Film, Music, Archive, File, Save, Sparkles } from "lucide-react";
+import { Paperclip, X, FileText, Image as ImageIcon, Film, Music, Archive, File, MessageSquare } from "lucide-react";
 import type { ComposeData, ComposeMode, Draft } from "@/types/email";
-import { useComposeAssist } from "@/hooks/use-compose-assist";
+import { useComposeChat } from "@/hooks/use-compose-chat";
+import { EmailEditor, type EmailEditorRef } from "./editor";
+import { ComposeChat } from "@/components/ai/compose-chat";
 
 export const COMPOSE_STORAGE_KEY = "bertram_compose";
 
@@ -53,7 +55,7 @@ function getFileTypeStyle(contentType: string): { bg: string; text: string; labe
 
 function FileIcon({ type }: { type: string }) {
   const cls = "h-4 w-4 shrink-0";
-  if (type.startsWith("image/")) return <Image className={cls} />;
+  if (type.startsWith("image/")) return <ImageIcon className={cls} />;
   if (type.startsWith("video/")) return <Film className={cls} />;
   if (type.startsWith("audio/")) return <Music className={cls} />;
   if (type === "application/pdf" || type.includes("document") || type.includes("text"))
@@ -75,11 +77,12 @@ function FilePreview({ file }: { file: File }) {
 interface EmailComposeProps {
   embedded?: boolean;
   initialData?: ComposeData;
+  initialDraftId?: string;
   onClose?: () => void;
   onSent?: () => void;
 }
 
-export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailComposeProps = {}) {
+export function EmailCompose({ embedded, initialData, initialDraftId, onClose, onSent }: EmailComposeProps = {}) {
   const { getToken } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,6 +100,7 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<EmailEditorRef>(null);
 
   const [draftId, setDraftId] = useState<string | undefined>(undefined);
   const draftIdRef = useRef<string | undefined>(undefined);
@@ -105,23 +109,36 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
   const initializedRef = useRef(false);
   const hasContentRef = useRef(false);
 
-  const [showAiAssist, setShowAiAssist] = useState(false);
-  const [aiInstructions, setAiInstructions] = useState("");
-  const { draftBody: aiDraftBody, isLoading: aiLoading, error: aiError, execute: runAiAssist } = useComposeAssist();
+  const [showChat, setShowChat] = useState(false);
+  const handleChatBodyUpdate = useCallback((newBody: string) => {
+    setBody(newBody);
+    editorRef.current?.setContent(newBody);
+  }, []);
+  const handleChatSubjectUpdate = useCallback((newSubject: string) => {
+    setSubject(newSubject);
+  }, []);
+  const handleChatToUpdate = useCallback((newTo: string) => {
+    setTo(newTo);
+  }, []);
+  const handleChatCcUpdate = useCallback((newCc: string) => {
+    setCc(newCc);
+  }, []);
+  const {
+    messages: chatMessages,
+    isLoading: chatLoading,
+    sendMessage: sendChatMessage,
+    clear: clearChat,
+  } = useComposeChat({
+    onBodyUpdate: handleChatBodyUpdate,
+    onSubjectUpdate: handleChatSubjectUpdate,
+    onToUpdate: handleChatToUpdate,
+    onCcUpdate: handleChatCcUpdate,
+  });
 
   // Track whether the form has meaningful content worth auto-saving
   useEffect(() => {
     hasContentRef.current = !!(to || cc || subject || body);
   }, [to, cc, subject, body]);
-
-  // Apply AI-generated body
-  useEffect(() => {
-    if (aiDraftBody) {
-      setBody(aiDraftBody);
-      setShowAiAssist(false);
-      setAiInstructions("");
-    }
-  }, [aiDraftBody]);
 
   // Load draft from API or sessionStorage on mount
   useEffect(() => {
@@ -137,6 +154,10 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
       setThreadId(initialData.thread_id);
       setInReplyTo(initialData.in_reply_to);
       setReferences(initialData.references);
+      if (initialDraftId) {
+        draftIdRef.current = initialDraftId;
+        setDraftId(initialDraftId);
+      }
       return;
     }
 
@@ -181,7 +202,7 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
     } catch {
       // ignore malformed data
     }
-  }, [draftParam, getToken, embedded, initialData]);
+  }, [draftParam, getToken, embedded, initialData, initialDraftId]);
 
   const parseEmails = (value: string) =>
     value
@@ -244,16 +265,6 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
       }
     };
   }, [to, cc, subject, body, saveDraft]);
-
-  const handleManualSave = async () => {
-    setStatus({ kind: "saving" });
-    try {
-      await saveDraft();
-      setStatus({ kind: "saved" });
-    } catch {
-      setStatus({ kind: "error", message: "Failed to save draft" });
-    }
-  };
 
   const totalAttachmentSize = attachments.reduce((sum, f) => sum + f.size, 0);
 
@@ -319,6 +330,7 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
       setCc("");
       setSubject("");
       setBody("");
+      editorRef.current?.clear();
       setMode("new");
       setThreadId(undefined);
       setInReplyTo(undefined);
@@ -350,13 +362,14 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
   };
 
   const inputClass =
-    "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+    "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <div className="flex gap-4">
+    <form onSubmit={handleSubmit} className={cn("flex flex-col gap-4 transition-all duration-300", showChat ? "w-3/4" : "w-full")}>
       {embedded && (
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{mode === "new" ? "New email" : MODE_LABELS[mode]}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{mode === "new" ? "New email" : MODE_LABELS[mode]}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -414,76 +427,30 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
         />
       </div>
       <div>
-        <label htmlFor="body" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Body
         </label>
-        <textarea
-          id="body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          className={cn(inputClass, "min-h-[200px] resize-y")}
+        <EmailEditor
+          ref={editorRef}
+          initialContent={body}
+          onUpdate={(html) => setBody(html)}
           placeholder="Write your message..."
+          subject={subject}
         />
       </div>
-      {/* AI Assist */}
-      <div className="flex flex-col gap-2">
+      {/* AI Actions */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => setShowAiAssist((v) => !v)}
-          disabled={isSubmitting || aiLoading}
-          className="inline-flex w-fit items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
+          onClick={() => setShowChat((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent",
+            showChat && "bg-accent border-primary/30",
+          )}
         >
-          <Sparkles className="h-4 w-4 text-paprika" />
-          AI Assist
+          <MessageSquare className="h-4 w-4 text-primary" />
+          AI Chat
         </button>
-        {showAiAssist && (
-          <div className="flex flex-col gap-2 rounded-md border border-input bg-accent/30 p-3">
-            <input
-              type="text"
-              value={aiInstructions}
-              onChange={(e) => setAiInstructions(e.target.value)}
-              className={inputClass}
-              placeholder="e.g., make it more formal, add a call to action..."
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={aiLoading}
-                onClick={() =>
-                  runAiAssist({
-                    subject,
-                    body,
-                    instructions: aiInstructions,
-                    attachments,
-                  })
-                }
-                className="inline-flex items-center gap-2 rounded-md bg-paprika px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-paprika/90 disabled:opacity-50"
-              >
-                {aiLoading ? (
-                  <>
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                    Generating...
-                  </>
-                ) : (
-                  "Generate"
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAiAssist(false);
-                  setAiInstructions("");
-                }}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
-              >
-                Cancel
-              </button>
-            </div>
-            {aiError && (
-              <p className="text-sm text-destructive">{aiError.message}</p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Attachments */}
@@ -501,7 +468,7 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+          className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
           <Paperclip className="h-4 w-4" />
           Attach files
@@ -515,7 +482,7 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
                 className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2"
               >
                 <FilePreview file={file} />
-                <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{file.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {getFileTypeStyle(file.type).label} · {formatFileSize(file.size)}
                 </span>
@@ -547,20 +514,11 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
         >
           {isSubmitting ? "Sending..." : "Send"}
         </button>
-        <button
-          type="button"
-          onClick={handleManualSave}
-          disabled={isSavingDraft || isSubmitting}
-          className="inline-flex items-center gap-2 rounded-md border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {isSavingDraft ? "Saving..." : "Save Draft"}
-        </button>
         {mode !== "new" && (
           <button
             type="button"
             onClick={handleDiscard}
-            className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+            className="rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
           >
             Discard
           </button>
@@ -577,5 +535,18 @@ export function EmailCompose({ embedded, initialData, onClose, onSent }: EmailCo
         <p className="text-sm text-destructive">{status.message}</p>
       )}
     </form>
+
+    {/* AI Chat — side panel */}
+    {showChat && (
+      <div className="w-1/4 min-w-[240px] max-h-[600px] sticky top-4 rounded-lg border border-border bg-card flex flex-col overflow-hidden">
+        <ComposeChat
+          messages={chatMessages}
+          isLoading={chatLoading}
+          onSend={(msg) => sendChatMessage(msg, subject, body, to, cc)}
+          onClear={clearChat}
+        />
+      </div>
+    )}
+    </div>
   );
 }
