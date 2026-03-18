@@ -1,27 +1,35 @@
 "use client";
 
-import { SearchX } from "lucide-react";
+import { Inbox, SearchX } from "lucide-react";
 import type { Email } from "@/hooks/use-emails";
 import { EmailListItem } from "./email-list-item";
+import { EmailRowSkeleton } from "./email-row-skeleton";
 
 function LoadingState() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    <div>
+      {Array.from({ length: 6 }, (_, i) => (
+        <EmailRowSkeleton key={i} delay={i} variant={i % 3} />
+      ))}
     </div>
   );
 }
 
 function EmptyState({ isSearch }: { isSearch: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+    <div className="flex flex-col items-center justify-center py-16 text-center">
       {isSearch ? (
         <>
-          <SearchX className="mb-2 h-8 w-8" />
-          <p className="text-sm">No emails match your search</p>
+          <SearchX className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">No results found</p>
+          <p className="mt-1 text-xs text-muted-foreground">Try a different search term</p>
         </>
       ) : (
-        <p className="text-sm">No emails yet</p>
+        <>
+          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">You&apos;re all caught up</p>
+          <p className="mt-1 text-xs text-muted-foreground">No emails in this view</p>
+        </>
       )}
     </div>
   );
@@ -48,10 +56,11 @@ export function EmailList({ emails, isLoading, isSearch = false, threadCounts, s
 
   return (
     <div className="divide-y divide-border rounded-lg border border-border bg-card">
-      {emails.map((email) => (
+      {emails.map((email, i) => (
         <EmailListItem
           key={email.id}
           email={email}
+          index={i}
           threadMessageCount={email.thread_id ? threadCounts?.get(email.thread_id) : undefined}
           selectMode={selectMode}
           isSelected={selectedIds?.has(email.id) ?? false}

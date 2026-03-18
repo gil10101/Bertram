@@ -33,7 +33,7 @@ export function AiSummary({ emailId, provider }: AiSummaryProps) {
         <button
           type="button"
           onClick={handleSummarize}
-          className="rounded px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+          className="relative overflow-hidden rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground before:absolute before:inset-0 before:animate-shimmer before:bg-[length:200%_100%] before:bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)] hover:bg-primary/90"
         >
           Summarize
         </button>

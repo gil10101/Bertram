@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { GmailCategoryTabs } from "@/components/email/gmail-category-tabs";
 import { NewEmailBanner } from "@/components/email/new-email-banner";
 import type { GmailCategory } from "@/components/email/gmail-category-tabs";
+import { EmailRowSkeleton } from "@/components/email/email-row-skeleton";
 import type { Email } from "@/hooks/use-emails";
 
 interface NewEmailPreview {
@@ -72,24 +73,10 @@ interface MailListProps {
   newEmailCount?: number;
   newEmails?: NewEmailPreview[];
   onDismissNewEmails?: () => void;
-  // Provider filter
-  connectedProviders?: string[];
-  activeProvider?: string;
-  onProviderChange?: (provider: string) => void;
   // Focused email for keyboard nav
   focusedEmailId?: string;
   // Search
   searchQuery?: string;
-}
-
-const KNOWN_LABELS: Record<string, string> = {
-  all: "All",
-  gmail: "Gmail",
-  outlook: "Outlook",
-};
-
-function providerLabel(key: string): string {
-  return KNOWN_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 const LABEL_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -178,6 +165,7 @@ function EmailRow({
   onToggleStar,
   isFocused,
   threadCount,
+  index = 0,
 }: {
   email: Email;
   isSelected: boolean;
@@ -188,19 +176,21 @@ function EmailRow({
   onToggleStar: (id: string, starred: boolean) => void;
   isFocused: boolean;
   threadCount?: number;
+  index?: number;
 }) {
   return (
     <button
       onClick={onClick}
       data-email-id={email.id}
       className={cn(
-        "flex w-full items-start gap-3 border-b border-sidebar px-4 py-3 text-left transition-colors duration-150",
+        "animate-fade-slide-up flex w-full items-start gap-3 border-b border-sidebar px-4 py-3 text-left transition-colors duration-150",
         isSelected
           ? "border-l-2 border-l-primary bg-accent"
           : isFocused
             ? "border-l-2 border-l-primary/50 bg-accent/60"
             : "border-l-2 border-l-transparent hover:bg-card"
       )}
+      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
     >
       {/* Checkbox (animated) */}
       <div
@@ -299,9 +289,6 @@ export function MailList({
   newEmailCount,
   newEmails,
   onDismissNewEmails,
-  connectedProviders,
-  activeProvider,
-  onProviderChange,
   focusedEmailId,
   searchQuery,
 }: MailListProps) {
@@ -322,10 +309,6 @@ export function MailList({
   const perPage = 20;
   const rangeStart = (page - 1) * perPage + 1;
   const rangeEnd = (page - 1) * perPage + emailCount;
-
-  const showProviderSwitcher =
-    connectedProviders && connectedProviders.length > 1 && onProviderChange;
-  const providerTabs = showProviderSwitcher ? ["all", ...connectedProviders] : [];
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -355,25 +338,6 @@ export function MailList({
               "Select"
             )}
           </button>
-          {onProviderChange && providerTabs.length > 0 && (
-            <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
-              {providerTabs.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={cn(
-                    "rounded px-2 py-1 text-xs font-medium transition-colors",
-                    activeProvider === p
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => onProviderChange(p)}
-                >
-                  {providerLabel(p)}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -483,18 +447,25 @@ export function MailList({
       {/* Email List */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div>
+            {Array.from({ length: 10 }, (_, i) => (
+              <EmailRowSkeleton key={i} delay={i} variant={i % 3} />
+            ))}
           </div>
         ) : emails.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-16 text-center">
             {searchQuery ? (
               <>
-                <SearchX className="mb-2 h-8 w-8" />
-                <p className="text-sm">No emails match your search</p>
+                <SearchX className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                <p className="text-sm font-medium text-foreground">No results found</p>
+                <p className="mt-1 text-xs text-muted-foreground">Try a different search term</p>
               </>
             ) : (
-              <p className="text-sm">No emails yet</p>
+              <>
+                <Mail className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                <p className="text-sm font-medium text-foreground">You&apos;re all caught up</p>
+                <p className="mt-1 text-xs text-muted-foreground">No emails in this view</p>
+              </>
             )}
           </div>
         ) : (
@@ -508,7 +479,7 @@ export function MailList({
                   </span>
                   <span className="text-[11px] text-faint">[{pinnedEmails.length}]</span>
                 </div>
-                {pinnedEmails.map((email) => (
+                {pinnedEmails.map((email, i) => (
                   <EmailRow
                     key={email.id}
                     email={email}
@@ -524,6 +495,7 @@ export function MailList({
                     onToggleStar={onToggleStar}
                     isFocused={focusedEmailId === email.id}
                     threadCount={email.thread_message_count}
+                    index={i}
                   />
                 ))}
               </>
@@ -536,7 +508,7 @@ export function MailList({
               </span>
               <span className="text-[11px] text-faint">[{primaryEmails.length}]</span>
             </div>
-            {primaryEmails.map((email) => (
+            {primaryEmails.map((email, i) => (
               <EmailRow
                 key={email.id}
                 email={email}
@@ -552,6 +524,7 @@ export function MailList({
                 onToggleStar={onToggleStar}
                 isFocused={focusedEmailId === email.id}
                 threadCount={email.thread_message_count}
+                index={i}
               />
             ))}
           </>

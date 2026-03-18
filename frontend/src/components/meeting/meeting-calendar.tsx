@@ -109,7 +109,7 @@ function TimeGridView({
   return (
     <div className="flex overflow-hidden rounded-b-lg">
       {/* Time gutter */}
-      <div className="relative w-16 flex-shrink-0 border-r border-border bg-muted/30">
+      <div className="relative w-16 flex-shrink-0 border-r border-border/50 bg-background/30">
         {timeSlots.map((label, i) => (
           <div
             key={label}
@@ -125,7 +125,7 @@ function TimeGridView({
             className="pointer-events-none absolute right-0 z-20 flex items-center"
             style={{ top: `${nowPx}px` }}
           >
-            <div className="h-[2px] w-3 bg-primary" />
+            <div className="h-[2px] w-3 bg-muted-foreground" />
           </div>
         )}
       </div>
@@ -140,13 +140,13 @@ function TimeGridView({
             <div
               key={dayIdx}
               className={cn(
-                "relative border-r border-border last:border-r-0",
-                isToday && "bg-primary/[0.03]",
+                "relative border-r border-border/50 last:border-r-0",
+                isToday && "bg-border/20",
               )}
             >
               {/* Hour grid lines */}
               {timeSlots.map((_, i) => (
-                <div key={i} className="border-b border-border/40" style={{ height: `${ROW_HEIGHT}px` }} />
+                <div key={i} className="border-b border-border/30" style={{ height: `${ROW_HEIGHT}px` }} />
               ))}
 
               {/* Meeting blocks */}
@@ -163,7 +163,7 @@ function TimeGridView({
                   <div
                     key={m.id}
                     onClick={() => onMeetingClick?.(m)}
-                    className="absolute inset-x-0.5 flex cursor-pointer overflow-hidden rounded bg-muted/60 text-foreground transition-opacity hover:opacity-80"
+                    className="absolute inset-x-0.5 flex cursor-pointer overflow-hidden rounded bg-border text-foreground transition-opacity hover:opacity-80"
                     style={{ top: `${topPx}px`, height: `${heightPx}px` }}
                     title={`${m.title}\n${formatTime(start)} – ${formatTime(end)}`}
                   >
@@ -172,7 +172,7 @@ function TimeGridView({
                       {providers.map((p) => (
                         <div
                           key={p}
-                          className={cn("flex-1", PROVIDER_COLORS[p]?.bg ?? "bg-primary")}
+                          className="flex-1 bg-muted-foreground"
                         />
                       ))}
                     </div>
@@ -197,8 +197,8 @@ function TimeGridView({
                   className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
                   style={{ top: `${nowPx}px` }}
                 >
-                  <div className="h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-primary" />
-                  <div className="h-[2px] flex-1 bg-primary" />
+                  <div className="h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-muted-foreground" />
+                  <div className="h-[2px] flex-1 bg-muted-foreground" />
                 </div>
               )}
             </div>
@@ -248,7 +248,7 @@ function MonthView({
     <div className="grid grid-cols-7">
       {cells.map((day, i) => {
         if (day === null) {
-          return <div key={`empty-${i}`} className="min-h-[96px] border-b border-r border-border/50 bg-muted/20 p-1" />;
+          return <div key={`empty-${i}`} className="min-h-[96px] border-b border-r border-border/30 bg-background/20 p-1" />;
         }
 
         const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -259,14 +259,14 @@ function MonthView({
           <div
             key={dateKey}
             className={cn(
-              "min-h-[96px] border-b border-r border-border/50 p-1 transition-colors",
-              isToday && "bg-primary/5",
+              "min-h-[96px] border-b border-r border-border/30 p-1 transition-colors",
+              isToday && "bg-border/20",
             )}
           >
             <span
               className={cn(
                 "mb-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs",
-                isToday ? "bg-primary font-semibold text-primary-foreground" : "text-foreground",
+                isToday ? "bg-foreground font-semibold text-background" : "text-muted-foreground",
               )}
             >
               {day}
@@ -280,12 +280,12 @@ function MonthView({
                   <div
                     key={m.id}
                     onClick={() => onMeetingClick?.(m)}
-                    className="flex cursor-pointer overflow-hidden rounded bg-muted/60 text-[10px] leading-tight text-foreground"
+                    className="flex cursor-pointer overflow-hidden rounded bg-border text-[10px] leading-tight text-foreground"
                     title={`${m.title}\n${formatTime(start)} – ${formatTime(end)}`}
                   >
                     <div className="flex w-0.5 flex-shrink-0 flex-col">
                       {providers.map((p) => (
-                        <div key={p} className={cn("flex-1", PROVIDER_COLORS[p]?.bg ?? "bg-primary")} />
+                        <div key={p} className="flex-1 bg-muted-foreground" />
                       ))}
                     </div>
                     <span className="truncate px-1 py-0.5">
@@ -433,19 +433,19 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
   const dayLabelsForGrid = view !== "month" && days.length > 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="rounded-lg border border-border bg-background">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <button
             onClick={goToPrev}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={goToNext}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -456,20 +456,20 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
           >
             {VIEW_LABELS[view]}
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", dropdownOpen && "rotate-180")} />
           </button>
           {dropdownOpen && (
-            <div className="absolute right-0 z-30 mt-1 min-w-[140px] overflow-hidden rounded-md border border-border bg-card shadow-lg">
+            <div className="absolute right-0 z-30 mt-1 min-w-[140px] overflow-hidden rounded-md border border-border bg-background shadow-lg">
               {(Object.keys(VIEW_LABELS) as CalendarView[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => selectView(v)}
                   className={cn(
-                    "flex w-full items-center px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-accent",
-                    v === view ? "bg-primary/10 text-primary" : "text-foreground",
+                    "flex w-full items-center px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-border",
+                    v === view ? "bg-border text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {VIEW_LABELS[v]}
@@ -492,13 +492,13 @@ export function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarPro
                   key={i}
                   className={cn(
                     "py-2 text-center text-xs",
-                    isToday ? "font-bold text-primary" : "font-medium text-muted-foreground",
+                    isToday ? "font-bold text-foreground" : "font-medium text-muted-foreground",
                   )}
                 >
                   <div>{DAY_LABELS[d.getDay()]}</div>
                   <div className={cn(
                     "mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs",
-                    isToday && "bg-primary text-primary-foreground",
+                    isToday && "bg-foreground text-background",
                   )}>
                     {d.getDate()}
                   </div>

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
 import {
   Inbox,
   Star,
@@ -13,11 +12,11 @@ import {
   Trash2,
   Settings,
   HelpCircle,
-  MoreHorizontal,
   Mail,
   Calendar,
   X,
 } from "lucide-react";
+import { AccountSwitcher } from "@/components/common/account-switcher";
 import { cn } from "@/lib/utils";
 import { useMobileSidebar } from "@/components/common/mobile-sidebar-provider";
 import { useCompose } from "@/components/common/compose-provider";
@@ -47,7 +46,7 @@ const managementNav: NavItem[] = [
 
 const bottomNav: NavItem[] = [
   { icon: Settings, label: "Settings", href: "/settings" },
-  { icon: HelpCircle, label: "Support", href: "/settings" },
+  { icon: HelpCircle, label: "Support", href: "/support" },
 ];
 
 export function MailSidebar() {
@@ -56,7 +55,6 @@ export function MailSidebar() {
   const router = useRouter();
   const { isOpen, close } = useMobileSidebar();
   const { openCompose } = useCompose();
-  const { user } = useUser();
   const unreadCount = useUnreadCount();
 
   const isActive = (item: NavItem) => {
@@ -90,10 +88,18 @@ export function MailSidebar() {
 
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item);
+    const currentProvider = searchParams.get("provider");
+
+    let href = item.href;
+    if (currentProvider && item.href.startsWith("/inbox")) {
+      const sep = href.includes("?") ? "&" : "?";
+      href = `${href}${sep}provider=${currentProvider}`;
+    }
+
     return (
       <Link
         key={item.label}
-        href={item.href}
+        href={href}
         onClick={close}
         className={cn(
           "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150",
@@ -130,29 +136,15 @@ export function MailSidebar() {
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        {/* Account Header */}
-        <div className="flex items-center justify-between px-4 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "h-8 w-8",
-                },
-              }}
-            />
-            <div className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-bold text-foreground">
-                {user?.fullName || "Bertram"}
-              </span>
-              <span className="block truncate text-xs text-faint">
-                {user?.emailAddresses?.[0]?.emailAddress || ""}
-              </span>
-            </div>
+        {/* Account Switcher */}
+        <div className="flex items-center">
+          <div className="min-w-0 flex-1">
+            <AccountSwitcher />
           </div>
           <button
             type="button"
             onClick={close}
-            className="rounded p-1 text-faint hover:bg-accent md:hidden"
+            className="mr-3 rounded p-1 text-faint hover:bg-accent md:hidden"
           >
             <X className="h-4 w-4" />
           </button>

@@ -131,6 +131,15 @@
   background: hsl(var(--muted-foreground));
 }
 
+/* Staggered entrance animation for list items */
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide-up {
+  animation: fade-slide-up 200ms ease-out both;
+}
+
 /* Ghost text autocomplete suggestion */
 .ghost-text-suggestion {
   color: hsl(var(--muted-foreground));

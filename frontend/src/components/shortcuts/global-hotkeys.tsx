@@ -19,7 +19,7 @@ export function GlobalHotkeys({
 
   const focusSearch = useCallback(() => {
     const input = document.querySelector<HTMLInputElement>(
-      '[placeholder="Search emails..."]',
+      '[placeholder="Search"]',
     );
     input?.focus();
   }, []);

@@ -13,17 +13,14 @@ export function BertramLogo({ size = 32, className }: BertramLogoProps) {
       height={size}
       className={className}
     >
-      <path
-        d="M50 20 L75 35 L75 65 L50 80 L25 65 L25 35 Z"
-        fill="#F26522"
-      />
+      <circle cx="50" cy="50" r="30" fill="#000000" />
       <path
         d="M50 35 L65 43 L65 57 L50 65 L35 57 L35 43 Z"
         fill="white"
       />
       <path
         d="M35 43 L50 52 L65 43"
-        stroke="#F26522"
+        stroke="#000000"
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"

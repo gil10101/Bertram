@@ -59,7 +59,7 @@ export function MeetingCard({ meeting, className, onClick }: MeetingCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        "relative cursor-pointer rounded-lg border border-border bg-card p-4 pl-5 shadow-sm transition-shadow hover:shadow-md",
+        "relative cursor-pointer rounded-lg border border-border bg-background p-4 pl-5 shadow-sm transition-shadow hover:shadow-md",
         className,
       )}
     >

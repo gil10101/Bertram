@@ -56,3 +56,8 @@ TODO*
 *.docx
 *analysis*
 *design*
+
+# Dev artifacts
+implementation-prompts.md
+bertram-logo.svg
+logo-preview.svg

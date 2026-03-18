@@ -5,7 +5,6 @@ import { useAuth } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { useEmails } from "@/hooks/use-emails";
 import { useDrafts } from "@/hooks/use-drafts";
-import { useConnectedProviders } from "@/hooks/use-connected-providers";
 import { useSearch } from "@/components/common/search-provider";
 import { useEmailSync } from "@/components/common/email-sync-provider";
 import { useCompose } from "@/components/common/compose-provider";
@@ -17,7 +16,6 @@ import { ThreadDisplay } from "@/components/mail/thread-display";
 import { EmptyThreadDisplay } from "@/components/mail/empty-thread-display";
 import { EmailCompose } from "@/components/email/email-compose";
 import { MailListHotkeys } from "@/components/shortcuts/mail-list-hotkeys";
-import { ThreadDisplayHotkeys } from "@/components/shortcuts/thread-display-hotkeys";
 import type { GmailCategory } from "@/components/email/gmail-category-tabs";
 import type { Email } from "@/hooks/use-emails";
 import type { Draft } from "@/types/email";
@@ -54,7 +52,6 @@ function draftToEmail(draft: Draft): Email {
 function InboxContent() {
   const { getToken } = useAuth();
   const searchParams = useSearchParams();
-  const { providers } = useConnectedProviders();
   const { query: searchQuery } = useSearch();
   const { newEmailCount, newEmails, dismiss } = useEmailSync();
   const { isComposeOpen, composeData, closeCompose } = useCompose();
@@ -74,7 +71,7 @@ function InboxContent() {
         ? FOLDER_TITLES[folder] ?? "Inbox"
         : "Inbox";
 
-  const [activeProvider, setActiveProvider] = useState<string>("all");
+  const activeProvider = searchParams.get("provider") ?? "all";
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedEmail, setSelectedEmail] = useState<SelectedEmail | null>(null);
@@ -82,6 +79,13 @@ function InboxContent() {
   const [activeCategory, setActiveCategory] = useState<GmailCategory>("primary");
   const [isPrioritizing, setIsPrioritizing] = useState(false);
   const [priorityOverrides, setPriorityOverrides] = useState<Map<string, "high" | "medium" | "low">>(new Map());
+
+  // Reset Gmail category when switching away from Gmail
+  useEffect(() => {
+    if (activeProvider !== "gmail") {
+      setActiveCategory("primary");
+    }
+  }, [activeProvider]);
 
   const providerForQuery =
     activeProvider === "all" ? undefined : activeProvider;
@@ -99,7 +103,7 @@ function InboxContent() {
   const pinnedFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (page !== 1 || isDraftsView || view === "starred" || searchQuery) {
+    if (page !== 1 || isDraftsView || view === "starred" || searchQuery || folder) {
       setPinnedEmails([]);
       return;
     }
@@ -121,7 +125,7 @@ function InboxContent() {
     fetchPinned();
     pinnedFetchedRef.current = true;
     return () => { cancelled = true; };
-  }, [page, isDraftsView, view, searchQuery, getToken, providerForQuery]);
+  }, [page, isDraftsView, view, searchQuery, folder, getToken, providerForQuery]);
 
   // Drafts data
   const { drafts, isLoading: draftsLoading, refetch: refetchDrafts } = useDrafts();
@@ -238,10 +242,6 @@ function InboxContent() {
     }
   }, [emails.length, isPrioritizing, getToken]);
 
-  const handleProviderChange = useCallback((provider: string) => {
-    setActiveProvider(provider);
-    setActiveCategory("primary");
-  }, []);
 
   const handleComposeSent = useCallback(() => {
     closeCompose();
@@ -284,33 +284,14 @@ function InboxContent() {
     }
   }, [selectedEmail, emails]);
 
-  // Thread display actions for hotkeys
-  // Reply/Forward are now handled inline inside ThreadDisplay — these are no-ops
-  const handleThreadReply = useCallback(() => {}, []);
-
-  const handleThreadArchive = useCallback(async () => {
-    if (!selectedEmail) return;
-    try {
-      await removeEmails([selectedEmail.id], { archive: true });
-      setSelectedEmail(null);
-      refetch();
-    } catch { /* handled */ }
-  }, [selectedEmail, removeEmails, refetch]);
-
-  const handleThreadDelete = useCallback(async () => {
-    if (!selectedEmail) return;
-    try {
-      await removeEmails([selectedEmail.id], { trash: true });
-      setSelectedEmail(null);
-      refetch();
-    } catch { /* handled */ }
-  }, [selectedEmail, removeEmails, refetch]);
+  // Thread display keyboard shortcuts (R/A/F/E/Esc) are now registered
+  // directly inside ThreadDisplay, which owns the reply mode state.
 
   // Shared MailList props
   const mailListProps = {
     title,
     emails,
-    pinnedEmails: page === 1 && !isDraftsView && view !== "starred" && !searchQuery ? pinnedEmails : undefined,
+    pinnedEmails: page === 1 && !isDraftsView && view !== "starred" && !searchQuery && !folder ? pinnedEmails : [],
     isLoading: displayLoading,
     onSelectEmail: handleSelectEmail,
     onToggleStar: handleToggleStar,
@@ -334,9 +315,6 @@ function InboxContent() {
     newEmailCount: isDraftsView ? 0 : newEmailCount,
     newEmails: isDraftsView ? undefined : newEmails,
     onDismissNewEmails: isDraftsView ? undefined : dismiss,
-    connectedProviders: isDraftsView ? undefined : providers,
-    activeProvider: isDraftsView ? undefined : activeProvider,
-    onProviderChange: isDraftsView ? undefined : handleProviderChange,
     searchQuery,
   } as const;
 
@@ -425,15 +403,6 @@ function InboxContent() {
               selectMode={selectMode}
               enabled={!selectedEmail && !isComposeOpen}
               onFocusedEmailChange={setFocusedEmailId}
-            />
-            <ThreadDisplayHotkeys
-              onReply={handleThreadReply}
-              onReplyAll={handleThreadReply}
-              onForward={handleThreadReply}
-              onArchive={handleThreadArchive}
-              onDelete={handleThreadDelete}
-              onBack={handleCloseDetail}
-              enabled={selectedEmail !== null}
             />
           </>
         )}

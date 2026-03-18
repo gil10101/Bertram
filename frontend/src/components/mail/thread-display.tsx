@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { EmailDetailSkeleton } from "@/components/email/email-detail-skeleton";
 import {
   X,
   ChevronLeft,
@@ -31,6 +32,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useHotkeys } from "@/hooks/use-hotkeys";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { createApiClient } from "@/lib/api-client";
 import {
@@ -469,6 +471,21 @@ export function ThreadDisplay({
     } catch { /* handled */ }
   };
 
+  // Register thread-display keyboard shortcuts directly here
+  // so R/A/F/E/Esc work with the inline reply state we own
+  useHotkeys(
+    {
+      reply: () => openInlineReply("reply"),
+      replyAll: () => openInlineReply("replyAll"),
+      forward: () => openInlineReply("forward"),
+      archive: handleArchive,
+      delete: handleDelete,
+      back: onClose,
+    },
+    "thread-display",
+    true,
+  );
+
   const [localBookmarked, setLocalBookmarked] = useState(false);
   const [localStarred, setLocalStarred] = useState<boolean | null>(null);
 
@@ -546,8 +563,8 @@ export function ThreadDisplay({
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="h-full bg-background">
+        <EmailDetailSkeleton />
       </div>
     );
   }

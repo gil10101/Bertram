@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMeetings } from "@/hooks/use-meetings";
+import { Calendar } from "lucide-react";
 import { MeetingCard } from "./meeting-card";
 import { MeetingCalendar } from "./meeting-calendar";
 import { MeetingForm } from "./time-slot-picker";
@@ -10,11 +11,23 @@ import { MeetingDetail } from "./meeting-detail";
 import { storeComposeData } from "@/components/email/email-compose";
 import type { Meeting, MeetingCreateRequest } from "@/types/meeting";
 import type { ComposeMode } from "@/types/email";
+import { MeetingCardSkeleton } from "@/components/meetings/meeting-card-skeleton";
 
 function LoadingState() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    <div className="flex flex-col gap-8">
+      <div>
+        <div className="mb-4 h-6 w-[100px] animate-pulse rounded bg-muted" />
+        <div className="h-[300px] animate-pulse rounded-lg border border-border bg-muted/30" />
+      </div>
+      <div>
+        <div className="mb-4 h-6 w-[180px] animate-pulse rounded bg-muted" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <MeetingCardSkeleton key={i} delay={i} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -157,7 +170,11 @@ export function MeetingScheduler() {
       <div>
         <h2 className="mb-4 text-lg font-bold text-foreground">Upcoming Meetings</h2>
         {upcomingMeetings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No upcoming meetings</p>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-background py-16 text-center">
+            <Calendar className="mb-3 h-10 w-10 text-muted-foreground/30" />
+            <p className="text-sm font-medium text-foreground">No upcoming meetings</p>
+            <p className="mt-1 text-xs text-muted-foreground">Scheduled meetings will appear here</p>
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {upcomingMeetings.map((meeting) => (

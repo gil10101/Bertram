@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { EmailDetailSkeleton } from "./email-detail-skeleton";
 import { useRouter } from "next/navigation";
 import { createApiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
@@ -513,11 +514,7 @@ export function EmailDetail({ emailId, provider, embedded, onClose, onActionComp
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <EmailDetailSkeleton />;
   }
 
   if (error || !email) {

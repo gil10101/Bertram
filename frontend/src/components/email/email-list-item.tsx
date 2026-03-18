@@ -113,9 +113,10 @@ interface EmailListItemProps {
   isFocused?: boolean;
   onSelect?: (email: Email) => void;
   onToggleStar?: (emailId: string, isStarred: boolean) => void;
+  index?: number;
 }
 
-export function EmailListItem({ email, threadMessageCount, selectMode, isSelected, onToggleSelect, isActive, isFocused, onSelect, onToggleStar }: EmailListItemProps) {
+export function EmailListItem({ email, threadMessageCount, selectMode, isSelected, onToggleSelect, isActive, isFocused, onSelect, onToggleStar, index = 0 }: EmailListItemProps) {
   const href = email.thread_id
     ? `/thread/${email.thread_id}${email.provider ? `?provider=${email.provider}` : ""}`
     : `/email/${email.id}${email.provider ? `?provider=${email.provider}` : ""}`;
@@ -210,7 +211,7 @@ export function EmailListItem({ email, threadMessageCount, selectMode, isSelecte
     <div
       data-email-id={email.id}
       className={cn(
-        "flex items-center border-l-[3px] border-l-border transition-colors hover:bg-accent/50",
+        "animate-fade-slide-up flex items-center border-l-[3px] border-l-border transition-colors hover:bg-accent/50",
         isActive
           ? "bg-accent !border-l-primary"
           : isFocused
@@ -221,6 +222,7 @@ export function EmailListItem({ email, threadMessageCount, selectMode, isSelecte
                 ? "bg-muted/30 opacity-70"
                 : "bg-card",
       )}
+      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
     >
       {/* Checkbox with animated width */}
       <div

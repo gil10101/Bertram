@@ -1,22 +1,31 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmailRowSkeleton } from "@/components/email/email-row-skeleton";
+import { MeetingCardSkeleton } from "@/components/meetings/meeting-card-skeleton";
 import { cn } from "@/lib/utils";
 
 interface LoadingStateProps {
   className?: string;
-  variant?: "spinner" | "skeleton";
+  type?: "email-list" | "meeting-list" | "generic";
 }
 
-export function LoadingState({ className, variant = "skeleton" }: LoadingStateProps) {
-  if (variant === "spinner") {
+export function LoadingState({ className, type = "generic" }: LoadingStateProps) {
+  if (type === "email-list") {
     return (
-      <div
-        className={cn(
-          "inline-block h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent",
-          className
-        )}
-        role="status"
-        aria-label="Loading"
-      />
+      <div className={className}>
+        {Array.from({ length: 8 }, (_, i) => (
+          <EmailRowSkeleton key={i} delay={i} variant={i % 3} />
+        ))}
+      </div>
+    );
+  }
+
+  if (type === "meeting-list") {
+    return (
+      <div className={cn("grid gap-4 sm:grid-cols-2", className)}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <MeetingCardSkeleton key={i} delay={i} />
+        ))}
+      </div>
     );
   }
 

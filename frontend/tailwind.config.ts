@@ -139,7 +139,7 @@ const config: Config = {
       },
       animation: {
         "text-shimmer": "text-shimmer 3s ease-in-out infinite",
-        shimmer: "shimmer 1.5s ease-in-out infinite",
+        shimmer: "shimmer 3s ease-in-out infinite",
       },
     },
   },
