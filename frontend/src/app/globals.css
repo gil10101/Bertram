@@ -4,49 +4,50 @@
 
 @layer base {
   :root {
-    /* cool grey background (#f8f9fa) */
-    --background: 210 16.7% 97.6%;
-    --foreground: 40 4.2% 13.9%;
+    /* Light mode = the landing "cream" inbox palette (exact values from
+       landing.css --inbox-* tokens). Warm paper, dark ink, paprika accent. */
+    --background: 40 22% 91%;        /* inbox-bg */
+    --foreground: 40 10% 13%;        /* inbox-fg */
 
-    --card: 210 16.7% 97.6%;
-    --card-foreground: 40 4.2% 13.9%;
+    --card: 40 28% 95%;              /* inbox-card */
+    --card-foreground: 40 10% 13%;
 
-    --popover: 210 16.7% 97.6%;
-    --popover-foreground: 40 4.2% 13.9%;
+    --popover: 40 28% 95%;
+    --popover-foreground: 40 10% 13%;
 
     /* spicy_paprika primary */
     --primary: 17 83% 53.9%;
-    --primary-foreground: 210 16.7% 97.6%;
+    --primary-foreground: 40 28% 95%;
 
-    /* dust_grey-tinted secondary */
-    --secondary: 30 16.7% 95.3%;
-    --secondary-foreground: 34 5.8% 23.7%;
+    /* cream secondary */
+    --secondary: 40 14% 84%;         /* inbox-sidebar tone */
+    --secondary-foreground: 40 10% 20%;
 
-    /* warm muted (dust_grey 800) */
-    --muted: 43 14.3% 90.4%;
-    --muted-foreground: 35 6% 39.2%;
+    /* warm muted */
+    --muted: 40 16% 86%;
+    --muted-foreground: 40 7% 42%;
 
-    /* warm accent hover */
-    --accent: 30 16.7% 95.3%;
-    --accent-foreground: 34 5.8% 23.7%;
+    /* warm accent hover / selected */
+    --accent: 40 10% 78%;            /* inbox-accent */
+    --accent-foreground: 40 10% 13%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 16.7% 97.6%;
+    --destructive-foreground: 40 28% 95%;
 
-    /* dust_grey border */
-    --border: 38 15.7% 76.3%;
-    --input: 38 15.7% 76.3%;
+    /* cream border */
+    --border: 40 8% 78%;             /* inbox-border */
+    --input: 40 8% 78%;
     --ring: 17 83% 53.9%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 40 7% 8%;
-    --sidebar-foreground: 45 37.5% 93.7%;
+    --sidebar-background: 40 14% 84%; /* inbox-sidebar */
+    --sidebar-foreground: 40 10% 13%;
     --sidebar-primary: 17 83% 53.9%;
-    --sidebar-primary-foreground: 45 37.5% 93.7%;
-    --sidebar-accent: 34 5.8% 23.7%;
-    --sidebar-accent-foreground: 45 37.5% 93.7%;
-    --sidebar-border: 34 5.8% 23.7%;
+    --sidebar-primary-foreground: 40 28% 95%;
+    --sidebar-accent: 40 10% 78%;     /* inbox-accent */
+    --sidebar-accent-foreground: 40 10% 13%;
+    --sidebar-border: 40 8% 78%;      /* inbox-border */
     --sidebar-ring: 17 83% 53.9%;
   }
 
@@ -100,11 +101,11 @@
   }
 }
 
-/* Bertram custom tokens — light mode defaults */
+/* Bertram custom tokens — light mode defaults (cream inbox palette) */
 :root {
-  --selected: 36 8% 20%;
-  --faint-text: 38 12% 55%;
-  --secondary-text: 38 18% 70%;
+  --selected: 40 10% 78%;          /* inbox-accent — selected row on cream */
+  --faint-text: 40 6% 50%;         /* inbox-faint */
+  --secondary-text: 40 8% 38%;
   --star: 45 60% 70%;
   --subtle-accent: 17 80% 95%;
   --primary-hover: 17 75% 48%;
@@ -112,6 +113,7 @@
 
 /* Dark mode overrides — boost lightness for readability on dark backgrounds */
 .dark {
+  --selected: 36 8% 20%;
   --faint-text: 38 12% 62%;
   --secondary-text: 38 18% 82%;
 }
