@@ -1,0 +1,490 @@
+/* ─────────────────────────────────────────────
+   BERTRAM — Landing page
+   Industrial type system, editorial tone.
+   Two themes: Cream (warm paper, default) + Dark (Linear-ink).
+   Theme follows the user's browser via prefers-color-scheme.
+   Scoped to the landing route (imported only by app/page.tsx).
+   ───────────────────────────────────────────── */
+
+:root {
+  /* Type — backed by next/font (layout.tsx), with literal fallbacks */
+  --font-display: var(--font-inter-tight), "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body:    var(--font-inter-tight), "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Paprika is shared, used very sparingly */
+  --paprika: #eb5e28;
+  --paprika-soft: rgba(235, 94, 40, 0.14);
+
+  /* Default = cream */
+  --bg:       #efece4;
+  --bg-soft:  #e8e3d6;
+  --bg-deep:  #ddd6c4;
+  --ink:      #1a1714;
+  --ink-2:    #5a564e;
+  --ink-3:    #918b80;
+  --rule:     rgba(26, 23, 20, 0.12);
+  --rule-2:   rgba(26, 23, 20, 0.06);
+  --chip-bg:  rgba(26, 23, 20, 0.05);
+  --inverse-bg: #0a0a0b;
+  --inverse-ink: #f0ede4;
+  --grid-line: rgba(26, 23, 20, 0.05);
+
+  /* Soft gradient used in Features visuals */
+  --soft-grad: linear-gradient(160deg, #e3d4bd 0%, #efece4 50%, #d9d0bd 100%);
+
+  /* Product inbox surface tokens — match Bertram codebase, but cream-toned */
+  --inbox-sidebar: hsl(40, 14%, 84%);
+  --inbox-bg:      hsl(40, 22%, 91%);
+  --inbox-card:    hsl(40, 28%, 95%);
+  --inbox-fg:      hsl(40, 10%, 13%);
+  --inbox-muted:   hsl(40, 8%, 30%);
+  --inbox-faint:   hsl(40, 6%, 50%);
+  --inbox-accent:  hsl(40, 10%, 78%);
+  --inbox-border:  hsl(40, 8%, 78%);
+}
+
+/* Dark theme — follows the browser. Warm dark, not pure black. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       hsl(40, 7%, 9%);
+    --bg-soft:  hsl(40, 6%, 11.5%);
+    --bg-deep:  hsl(38, 8%, 14%);
+    --ink:      hsl(45, 32%, 93%);
+    --ink-2:    hsl(38, 14%, 74%);
+    --ink-3:    hsl(38, 10%, 52%);
+    --rule:     hsla(40, 30%, 90%, 0.10);
+    --rule-2:   hsla(40, 30%, 90%, 0.05);
+    --chip-bg:  hsla(40, 30%, 90%, 0.05);
+    --inverse-bg: #efece4;
+    --inverse-ink: #1a1714;
+    --grid-line: hsla(40, 30%, 90%, 0.04);
+
+    --soft-grad: linear-gradient(160deg, hsl(40, 8%, 13%) 0%, hsl(40, 6%, 10%) 50%, hsl(36, 12%, 16%) 100%);
+
+    /* Product inbox tokens — exact from the Bertram inbox */
+    --inbox-sidebar: hsl(40, 7%, 8%);
+    --inbox-bg:      hsl(40, 5.4%, 11.2%);
+    --inbox-card:    hsl(36, 15.4%, 15.3%);
+    --inbox-fg:      hsl(45, 37.5%, 93.7%);
+    --inbox-muted:   hsl(38, 15.7%, 76.3%);
+    --inbox-faint:   hsl(38, 12%, 55%);
+    --inbox-accent:  hsl(34, 5.8%, 23.7%);
+    --inbox-border:  hsl(34, 5.8%, 23.7%);
+  }
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+html, body { background: var(--bg); color: var(--ink); }
+
+body {
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "cv11", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::selection { background: var(--paprika); color: #fff; }
+
+.bertram-landing a { color: inherit; text-decoration: none; }
+.bertram-landing button { font: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+.bertram-landing img, .bertram-landing svg { display: block; max-width: 100%; }
+
+/* Type utilities */
+.mono { font-family: var(--font-mono); }
+.serif-italic { font-style: italic; font-feature-settings: "ss02"; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.h-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  font-feature-settings: "ss01";
+}
+
+.lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.05rem, 1.3vw, 1.25rem);
+  letter-spacing: -0.01em;
+  line-height: 1.45;
+  color: var(--ink-2);
+  max-width: 38ch;
+}
+
+/* Containers */
+.shell {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+@media (max-width: 720px) {
+  .shell { padding: 0 20px; }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  transition: background .25s ease, color .25s ease, border-color .25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* Shimmer sweep — a glint sweeps across on HOVER (no color change).
+   Streak color is derived from --bg (the button's own foreground), so
+   it reads as a light sweep on the dark cream button and a dark sweep
+   on the light dark-theme button. overflow:hidden on .btn clips it. */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -65%;
+  width: 48%;
+  background: linear-gradient(100deg,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 38%, transparent) 50%,
+    transparent 100%);
+  transform: skewX(-18deg);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+.btn-primary:hover::after {
+  animation: btnShimmer 0.85s ease-out;
+}
+@keyframes btnShimmer {
+  0%   { left: -65%;  opacity: 1; }
+  100% { left: 150%;  opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:hover::after { animation: none; }
+}
+.btn:hover .btn-arrow {
+  transform: translateX(3px);
+}
+
+.btn-ghost {
+  color: var(--ink-2);
+  padding: 12px 14px;
+}
+.btn-ghost:hover { color: var(--ink); }
+
+/* "See it work" — the sparkle turns on hover */
+.see-it-work svg {
+  transform-origin: 50% 50%;
+  transition: transform .7s cubic-bezier(.22,.61,.36,1);
+}
+.see-it-work:hover svg { transform: rotate(360deg); }
+@media (prefers-reduced-motion: reduce) {
+  .see-it-work:hover svg { transform: none; }
+}
+
+.btn-arrow {
+  display: inline-block;
+  width: 14px; height: 14px;
+  position: relative;
+  transition: transform .25s ease;
+}
+.btn-arrow::before,
+.btn-arrow::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+.btn-arrow::before {
+  top: 50%; left: 0;
+  width: 100%; height: 1.5px;
+  transform: translateY(-50%);
+}
+.btn-arrow::after {
+  top: 50%; right: 0;
+  width: 7px; height: 7px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  background: transparent;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* Background grain — very subtle */
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  z-index: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@media (prefers-color-scheme: dark) {
+  .grain { mix-blend-mode: screen; opacity: 0.06; }
+}
+
+/* Section vertical rhythm */
+.bertram-landing section { position: relative; }
+
+.section-divider {
+  border-top: 1px solid var(--rule);
+}
+
+/* Reveal helpers — set on scroll */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .9s cubic-bezier(.22,.61,.36,1), transform .9s cubic-bezier(.22,.61,.36,1); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* tags / chips */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--ink-2);
+  border: 1px solid var(--rule);
+}
+.chip.priority { color: var(--paprika); border-color: rgba(235,94,40,0.3); background: var(--paprika-soft); }
+.chip.dot::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; display: inline-block;
+}
+
+/* Fine rule with mono caption */
+.rule-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  gap: 24px;
+}
+
+/* Numbered list */
+.num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+/* Animated cursor blink for hero */
+@keyframes blink { 50% { opacity: 0; } }
+.cursor-blink { display: inline-block; width: 0.55em; height: 0.9em; background: var(--paprika); margin-left: 0.08em; vertical-align: -0.08em; animation: blink 1.05s steps(1, end) infinite; }
+
+/* Calendar (04 demo) — the just-booked meeting animates into being */
+@keyframes meetingCreate {
+  0%   { opacity: 0; transform: translateY(-8px) scale(0.985); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes meetingGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(235, 94, 40, 0); }
+  25%  { box-shadow: 0 0 0 3px rgba(235, 94, 40, 0.38); }
+  100% { box-shadow: 0 0 0 0 rgba(235, 94, 40, 0); }
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — Mobile down, ultra-wide up.
+   Desktop (721px–1440px) is the canonical layout; this
+   block only widens or tightens around that core.
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Ultra-wide canvas (2000+ / 2600+) ───
+   Existing shell caps at 1440. Bump up for huge screens
+   so editorial content has more presence on the canvas,
+   without changing standard-desktop look. */
+@media (min-width: 1800px) {
+  .shell { max-width: 1560px; }
+}
+@media (min-width: 2400px) {
+  .shell { max-width: 1720px; }
+  html { font-size: 17px; }
+}
+@media (min-width: 3000px) {
+  .shell { max-width: 1880px; }
+  html { font-size: 18px; }
+}
+
+/* ─── Tablet & below (≤1024) ─── */
+@media (max-width: 1024px) {
+  .shell { padding: 0 24px; }
+}
+
+/* ─── Tablet portrait (≤860) ─── */
+@media (max-width: 860px) {
+  html { font-size: 15.5px; }
+
+  /* Hero — tighten vertical rhythm */
+  #top { padding-top: 110px !important; padding-bottom: 56px !important; }
+  #top .h-display { letter-spacing: -0.04em !important; }
+  #top .hero-demo-wrap { margin-top: 56px !important; }
+
+  /* Marquee */
+  #integrations { padding: 32px 0 !important; }
+
+  /* Manifesto */
+  .manifesto-section { padding: 120px 0 130px !important; }
+
+  /* Product 04 */
+  .product-section { padding-top: 100px !important; padding-bottom: 110px !important; }
+  .product-section .product-tabs button {
+    padding: 8px 14px !important;
+    font-size: 12.5px !important;
+  }
+}
+
+/* ─── Mobile (≤640) ─── */
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+  .shell { padding: 0 18px; }
+
+  /* Hero */
+  #top { padding-top: 92px !important; padding-bottom: 40px !important; }
+  #top .h-display { font-size: clamp(2.6rem, 13vw, 4.2rem) !important; letter-spacing: -0.035em !important; }
+  #top .lede { font-size: 0.98rem !important; margin-top: 22px !important; max-width: 32ch !important; }
+  #top .hero-cta-row { margin-top: 28px !important; gap: 10px !important; }
+  #top .hero-cta-row .btn-primary { padding: 11px 18px !important; font-size: 13.5px !important; }
+  #top .hero-demo-wrap { margin-top: 44px !important; }
+
+  /* Marquee fades — tighter */
+  #integrations { padding: 24px 0 !important; }
+
+  /* Manifesto */
+  .manifesto-section { padding: 90px 0 100px !important; }
+  .manifesto-section h2 { font-size: clamp(1.9rem, 8vw, 2.6rem) !important; }
+
+  /* Features 03 */
+  .features-section { padding-top: 80px !important; padding-bottom: 80px !important; }
+  .features-header h2 { font-size: clamp(1.9rem, 8vw, 2.6rem) !important; }
+
+  /* Product 04 */
+  .product-section { padding-top: 80px !important; padding-bottom: 90px !important; }
+  .product-section .product-eyebrow { margin-bottom: 14px !important; }
+  .product-section .product-headline { font-size: clamp(2rem, 8.5vw, 2.8rem) !important; }
+  .product-section .product-lede { font-size: 0.96rem !important; }
+  .product-section .product-tabs { gap: 6px !important; }
+  .product-section .product-tabs button { padding: 7px 12px !important; font-size: 12px !important; }
+  .product-section .product-cycle-row { margin-bottom: 18px !important; }
+
+  /* Footer */
+  footer { padding: 44px 0 32px !important; }
+}
+
+/* ─── Small mobile (≤420) ─── */
+@media (max-width: 420px) {
+  .shell { padding: 0 16px; }
+  #top { padding-top: 84px !important; }
+  #top .h-display { font-size: clamp(2.4rem, 14vw, 3.6rem) !important; }
+}
+
+
+/* ─── Bertram inbox demo — responsive heights ───
+   The inbox is a fixed-height window. Shrink it as we go
+   down. The internal sidebar + thread-list are already
+   hidden at narrow widths by inline media queries.  */
+@media (max-width: 1024px) {
+  .inbox-grid { height: 680px !important; }
+}
+@media (max-width: 860px) {
+  .inbox-grid { height: 620px !important; }
+}
+@media (max-width: 640px) {
+  .inbox-grid { height: 560px !important; }
+}
+@media (max-width: 420px) {
+  .inbox-grid { height: 520px !important; }
+}
+
+
+/* ─── Features (03) — mobile transformation ───
+   On wider screens the right column is sticky and cards
+   crossfade. On mobile, the right column hides entirely
+   and each text block shows its OWN card inline below.  */
+.features-inline-card {
+  display: none;        /* hidden on desktop */
+  margin-top: 28px;
+}
+
+@media (max-width: 980px) {
+  /* Inline card visible, sticky column gone */
+  .features-inline-card { display: flex; justify-content: center; }
+
+  .features-visual-col { display: none !important; }
+
+  /* One full-width column for the text blocks */
+  .features-grid { grid-template-columns: 1fr !important; gap: 0 !important; }
+
+  /* Blocks become discrete, not viewport-height */
+  .features-block {
+    min-height: auto !important;
+    padding: 36px 0 56px 22px !important;
+    border-left: 1px solid var(--rule) !important;
+    cursor: default !important;
+  }
+  .features-block + .features-block { padding-top: 44px !important; }
+
+  /* Always show active state (no scroll-driven dim) on mobile */
+  .features-block .feat-num,
+  .features-block .feat-title,
+  .features-block .feat-desc {
+    color: var(--ink) !important;
+    opacity: 1 !important;
+  }
+  .features-block .feat-num { color: var(--paprika) !important; }
+  .features-block .feat-title { color: var(--ink) !important; }
+  .features-block .feat-desc { color: var(--ink-2) !important; }
+}
+
+@media (max-width: 640px) {
+  .features-block { padding: 28px 0 44px 18px !important; }
+  .features-block .feat-title { font-size: clamp(1.6rem, 7vw, 2.2rem) !important; }
+}
+
+/* Inline card sizing — match the sticky-version look */
+.features-inline-card .features-soft-stage {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 16px;
+  padding: 32px 22px;
+  background: var(--soft-grad, linear-gradient(160deg, #d9c9b4 0%, #efece4 50%, #ddd6c4 100%));
+  border: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 420px) {
+  .features-inline-card .features-soft-stage { padding: 24px 16px; }
+}
+
+
+/* Footer cols already responsive via inline media queries. */

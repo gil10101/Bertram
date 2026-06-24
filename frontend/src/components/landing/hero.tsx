@@ -1,103 +1,105 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+// Hero — centered editorial headline + the big animated Bertram product UI below.
+
 import Link from "next/link";
-import { gsap } from "@/lib/gsap";
+import { Icon } from "./icons";
+import { BertramDemo } from "./product";
 
-export function Hero() {
-  const ref = useRef<HTMLElement>(null);
+const HEADLINE = "Email, finally finished.";
+const SUBHEAD = "An AI inbox that works.";
+const CTA = "Start with Gmail";
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: "power4.out" } });
-      tl.to("[data-hero-line]", {
-        y: 0,
-        duration: 1.2,
-        stagger: 0.12,
-        delay: 0.3,
-      })
-        .to("[data-hero-sub]", { y: 0, duration: 0.9 }, "-=0.5")
-        .to("[data-hero-cta]", { y: 0, duration: 0.9 }, "-=0.6");
-
-      gsap.to("[data-orb='1']", {
-        y: -120,
-        scrollTrigger: { trigger: ref.current, scrub: 1.5 },
-      });
-      gsap.to("[data-orb='2']", {
-        y: -80,
-        scrollTrigger: { trigger: ref.current, scrub: 1.5 },
-      });
-      gsap.to("[data-orb='3']", {
-        x: 60,
-        scrollTrigger: { trigger: ref.current, scrub: 1.5 },
-      });
-    }, ref);
-
-    return () => ctx.revert();
-  }, []);
-
+export function Hero({ isSignedIn = false }: { isSignedIn?: boolean }) {
   return (
     <section
-      ref={ref}
-      className="h-screen flex flex-col justify-center items-center relative overflow-hidden"
+      id="top"
+      className="hero-section"
+      style={{ position: "relative", paddingTop: 140, paddingBottom: 80, overflow: "hidden" }}
     >
-      <div
-        data-orb="1"
-        className="absolute w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full blur-[80px] opacity-[0.15] bg-paprika -top-[15%] -right-[10%]"
-      />
-      <div
-        data-orb="2"
-        className="absolute w-[200px] h-[200px] md:w-[400px] md:h-[400px] rounded-full blur-[80px] opacity-[0.15] bg-charcoal -bottom-[10%] -left-[5%]"
-      />
-      <div
-        data-orb="3"
-        className="absolute w-[150px] h-[150px] md:w-[250px] md:h-[250px] rounded-full blur-[80px] opacity-[0.08] bg-dust top-[30%] left-[15%]"
-      />
+      <BgGrid />
 
-      <h1 className="text-[clamp(3.5rem,12vw,11rem)] font-light tracking-[-0.04em] leading-[0.9] text-center relative z-[2]">
-        <span className="block overflow-hidden">
-          <span
-            data-hero-line
-            className="block"
-            style={{ transform: "translateY(110%)" }}
-          >
-            Your inbox,
-          </span>
-        </span>
-        <span className="block overflow-hidden pb-[0.15em]">
-          <span
-            data-hero-line
-            className="block"
-            style={{ transform: "translateY(110%)" }}
-          >
-            <em className="font-serif italic">finally</em> clear.
-          </span>
-        </span>
-      </h1>
-
-      <p className="text-[clamp(0.85rem,1.2vw,1rem)] text-charcoal-300 mt-8 md:mt-10 tracking-[0.02em] text-center max-w-[28rem] px-6 leading-[1.7] overflow-hidden">
-        <span
-          data-hero-sub
-          className="block"
-          style={{ transform: "translateY(100%)" }}
+      {/* Centered hero text */}
+      <div className="shell" style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
+        <h1
+          className="h-display"
+          style={{ fontSize: "clamp(3.4rem, 9vw, 8rem)", maxWidth: "15ch", margin: "0 auto", letterSpacing: "-0.05em" }}
         >
-          AI-powered email. Smart replies. Scheduled meetings.
-          <br />
-          One beautifully simple interface.
-        </span>
-      </p>
+          <HeadlineReveal text={HEADLINE} />
+        </h1>
 
-      <div className="mt-10 md:mt-12 overflow-hidden">
-        <Link
-          href="/sign-up"
-          data-hero-cta
-          className="flex items-center gap-3 text-[0.8rem] uppercase tracking-[0.1em] font-medium"
-          style={{ transform: "translateY(100%)" }}
+        <p className="lede" style={{ margin: "32px auto 0", textAlign: "center", maxWidth: 460 }}>
+          {SUBHEAD}
+        </p>
+
+        <div
+          className="hero-cta-row"
+          style={{ marginTop: 40, display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}
         >
-          <span className="w-12 h-px bg-carbon" />
-          <span>Start for free</span>
-        </Link>
+          <Link
+            href={isSignedIn ? "/inbox" : "/sign-up"}
+            className="btn btn-primary"
+            style={{ whiteSpace: "nowrap", padding: "13px 22px", fontSize: 14.5 }}
+          >
+            {CTA}
+            <span className="btn-arrow" />
+          </Link>
+          <a href="#product" className="btn btn-ghost mono see-it-work" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+            <Icon name="sparkle" size={12} color="var(--paprika)" />
+            See it work
+          </a>
+        </div>
+      </div>
+
+      {/* Big animated Bertram product UI — the full '04' cursor-driven demo */}
+      <div className="hero-demo-wrap" style={{ position: "relative", zIndex: 2, marginTop: 80 }}>
+        <BertramDemo controls={false} />
       </div>
     </section>
+  );
+}
+
+/* ── Background grid (subtle) ──────────────────────── */
+function BgGrid() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        backgroundImage:
+          "linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px)",
+        backgroundSize: "80px 80px",
+        maskImage: "radial-gradient(ellipse 80% 50% at 50% 20%, black 30%, transparent 80%)",
+        WebkitMaskImage: "radial-gradient(ellipse 80% 50% at 50% 20%, black 30%, transparent 80%)",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+/* ── Headline: italic emphasis on "finally" ─── */
+function HeadlineReveal({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <span>
+      {words.map((w, i) => {
+        const isItalic = /finally/i.test(w);
+        return (
+          <span key={i}>
+            <span
+              style={{
+                fontStyle: isItalic ? "italic" : "normal",
+                fontWeight: isItalic ? 400 : 500,
+                color: isItalic ? "var(--ink-2)" : "var(--ink)",
+              }}
+            >
+              {w}
+            </span>
+            {i < words.length - 1 && " "}
+          </span>
+        );
+      })}
+    </span>
   );
 }

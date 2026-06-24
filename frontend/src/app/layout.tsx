@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Inter, Instrument_Serif, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -9,6 +9,19 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
   subsets: ["latin"],
   variable: "--font-serif",
+});
+
+// Landing page (landing-v3) type system — Inter Tight + JetBrains Mono.
+const interTight = Inter_Tight({
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-inter-tight",
+});
+const jetBrainsMono = JetBrains_Mono({
+  weight: ["400", "500"],
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +41,7 @@ export default function RootLayout({
     <ClerkProvider afterSignOutUrl="/">
       <html lang="en">
         <body
-          className={`${inter.variable} ${instrumentSerif.variable} font-sans`}
+          className={`${inter.variable} ${instrumentSerif.variable} ${interTight.variable} ${jetBrainsMono.variable} font-sans`}
         >
           {children}
         </body>

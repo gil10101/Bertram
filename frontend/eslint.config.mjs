@@ -11,6 +11,14 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals"),
+  {
+    // Landing page is a faithful port of a design prototype with lots of
+    // editorial copy (apostrophes, quotes) inlined as JSX text.
+    files: ["src/components/landing/**/*.tsx"],
+    rules: {
+      "react/no-unescaped-entities": "off",
+    },
+  },
 ];
 
 export default eslintConfig;
