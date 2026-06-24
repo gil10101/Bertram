@@ -384,7 +384,7 @@ function InboxContent() {
   // Desktop three-pane layout
   if (isDesktop) {
     return (
-      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+      <div className="flex h-screen w-full overflow-hidden bg-sidebar">
         {!isDraftsView && (
           <>
             <MailListHotkeys
@@ -436,7 +436,7 @@ function InboxContent() {
   if (selectedEmail && !isComposeOpen) {
     if (selectedDraft) {
       return (
-        <div className="dark flex h-screen w-full overflow-hidden bg-background p-4">
+        <div className="flex h-screen w-full overflow-hidden bg-background p-4">
           <Suspense fallback={null}>
             <EmailCompose
               key={selectedDraft.id}
@@ -461,7 +461,7 @@ function InboxContent() {
     }
 
     return (
-      <div className="dark flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         <ThreadDisplay
           key={selectedEmail.threadId ?? selectedEmail.id}
           emailId={selectedEmail.id}
@@ -477,7 +477,7 @@ function InboxContent() {
   }
 
   return (
-    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+    <div className="flex h-screen w-full overflow-hidden bg-sidebar">
       <MailSidebar />
       <div className="flex flex-1 min-w-0 p-1 pl-0">
         <div className="flex-1 min-w-0">

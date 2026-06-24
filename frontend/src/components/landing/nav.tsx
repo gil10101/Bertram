@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BertramMark } from "./icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_LINKS = [
   { href: "#features", label: "Features" },
@@ -10,7 +11,15 @@ const NAV_LINKS = [
   { href: "#integrations", label: "Integrations" },
 ];
 
-export function Nav({ isSignedIn = false }: { isSignedIn?: boolean }) {
+export function Nav({
+  isSignedIn = false,
+  showLinks = true,
+  homeHref = "#top",
+}: {
+  isSignedIn?: boolean;
+  showLinks?: boolean;
+  homeHref?: string;
+}) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -38,33 +47,36 @@ export function Nav({ isSignedIn = false }: { isSignedIn?: boolean }) {
         className="shell"
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}
       >
-        <a href="#top" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+        <Link href={homeHref} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <BertramMark size={18} />
           <span style={{ fontFamily: "var(--font-display)", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em" }}>
             Bertram
           </span>
-        </a>
+        </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }} className="nav-links">
-          {NAV_LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="mono"
-              style={{ fontSize: 12, color: "var(--ink-2)", letterSpacing: "0.02em", transition: "color .25s ease" }}
-              onMouseEnter={(e: any) => (e.currentTarget.style.color = "var(--ink)")}
-              onMouseLeave={(e: any) => (e.currentTarget.style.color = "var(--ink-2)")}
-            >
-              {l.label}
-            </a>
-          ))}
-        </div>
+        {showLinks && (
+          <div style={{ display: "flex", alignItems: "center", gap: 32 }} className="nav-links">
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="mono"
+                style={{ fontSize: 12, color: "var(--ink-2)", letterSpacing: "0.02em", transition: "color .25s ease" }}
+                onMouseEnter={(e: any) => (e.currentTarget.style.color = "var(--ink)")}
+                onMouseLeave={(e: any) => (e.currentTarget.style.color = "var(--ink-2)")}
+              >
+                {l.label}
+              </a>
+            ))}
+          </div>
+        )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+          <ThemeToggle className="text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--chip-bg)]" size={18} />
           <Link
             href={isSignedIn ? "/inbox" : "/sign-up"}
             className="btn btn-primary"
-            style={{ padding: "8px 14px", fontSize: 13, whiteSpace: "nowrap" }}
+            style={{ padding: "8px 14px", fontSize: 13, whiteSpace: "nowrap", marginLeft: 4 }}
           >
             {isSignedIn ? "Dashboard" : "Get Bertram"}
           </Link>

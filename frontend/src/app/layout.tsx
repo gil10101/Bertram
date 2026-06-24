@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Inter, Instrument_Serif, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -39,11 +40,13 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider afterSignOutUrl="/">
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
           className={`${inter.variable} ${instrumentSerif.variable} ${interTight.variable} ${jetBrainsMono.variable} font-sans`}
         >
-          {children}
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -1,35 +1,24 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { Search, BookOpen, MessageSquare, Bug, Zap, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Bug, Zap, ChevronDown, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { MailSidebar } from "@/components/mail/mail-sidebar";
 
-const QUICK_LINKS = [
-  {
-    icon: BookOpen,
-    title: "Documentation",
-    description: "Guides for connecting accounts, AI features, and keyboard shortcuts.",
-    href: "#",
-  },
-  {
-    icon: MessageSquare,
-    title: "Contact Support",
-    description: "Get help from the Bertram team. We typically respond within 24 hours.",
-    href: "mailto:support@bertrammail.com",
-  },
+const ACTION_CARDS = [
   {
     icon: Bug,
     title: "Report a Bug",
-    description: "Found something broken? Let us know and we'll fix it fast.",
-    href: "mailto:bugs@bertrammail.com?subject=Bug Report",
+    description: "Found something broken? Tell us what happened and we'll fix it fast.",
+    href: "/report-bug",
   },
   {
     icon: Zap,
-    title: "Feature Requests",
-    description: "Have an idea? We read every suggestion.",
-    href: "mailto:feedback@bertrammail.com?subject=Feature Request",
+    title: "Feature Request",
+    description: "Have an idea that would make Bertram better? We read every suggestion.",
+    href: "/feature-request",
   },
 ];
 
@@ -37,7 +26,7 @@ const FAQ_ITEMS = [
   {
     question: "How do I connect my Gmail account?",
     answer:
-      "Go to Settings \u2192 Connected Accounts and click Connect. You'll be redirected to Google to authorize Bertram.",
+      "Go to Settings → Connected Accounts and click Connect. You'll be redirected to Google to authorize Bertram.",
   },
   {
     question: "Is my email data stored on Bertram's servers?",
@@ -52,7 +41,7 @@ const FAQ_ITEMS = [
   {
     question: "Can I use Bertram with multiple email accounts?",
     answer:
-      "Yes \u2014 connect both Gmail and Outlook from Settings. Use the account switcher in the sidebar to filter your inbox by account.",
+      "Yes — connect both Gmail and Outlook from Settings. Use the account switcher in the sidebar to filter your inbox by account.",
   },
   {
     question: "What keyboard shortcuts are available?",
@@ -62,7 +51,7 @@ const FAQ_ITEMS = [
   {
     question: "How do I disconnect an account?",
     answer:
-      "Go to Settings \u2192 Connected Accounts and click Disconnect next to the provider you want to remove.",
+      "Go to Settings → Connected Accounts and click Disconnect next to the provider you want to remove.",
   },
 ];
 
@@ -108,46 +97,49 @@ function SupportBody() {
       </h1>
 
       <div className="flex flex-col gap-8">
-        {/* Search */}
+        {/* Get in touch */}
         <section>
           <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            How can we help?
-          </h2>
-          {/* TODO: Wire to real search when help docs are available */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search for help..."
-              className="w-full rounded-lg border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-        </section>
-
-        {/* Quick Links */}
-        <section>
-          <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Quick Links
+            Get in touch
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {QUICK_LINKS.map((link) => (
-              <a
-                key={link.title}
-                href={link.href}
-                className="rounded-lg border border-border bg-card px-4 py-3.5 transition-colors hover:border-paprika/50"
+            {ACTION_CARDS.map((card) => (
+              <Link
+                key={card.title}
+                href={card.href}
+                className="group rounded-lg border border-border bg-card px-4 py-3.5 transition-colors hover:border-paprika/50"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paprika/10">
-                    <link.icon className="h-4 w-4 text-paprika" />
+                    <card.icon className="h-4 w-4 text-paprika" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{link.title}</p>
-                    <p className="text-xs text-muted-foreground">{link.description}</p>
+                    <p className="text-sm font-medium text-foreground">{card.title}</p>
+                    <p className="text-xs text-muted-foreground">{card.description}</p>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
+
+          {/* Documentation — full-width bar */}
+          <Link
+            href="/docs"
+            className="group mt-3 flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 transition-colors hover:border-paprika/50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paprika/10">
+                <BookOpen className="h-4 w-4 text-paprika" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Documentation</p>
+                <p className="text-xs text-muted-foreground">
+                  Guides for connecting accounts, AI features, and keyboard shortcuts.
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </section>
 
         {/* FAQ */}
@@ -175,7 +167,7 @@ function SupportContent() {
 
   if (isDesktop) {
     return (
-      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+      <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
         <MailSidebar />
         <div className="flex flex-1 min-w-0 gap-[2px] pr-1.5 py-1.5 pl-0">
           <div className="flex-1 min-w-0">
@@ -191,7 +183,7 @@ function SupportContent() {
   }
 
   return (
-    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
       <MailSidebar />
       <div className="flex flex-1 min-w-0 p-1 pl-0">
         <div className="flex-1 min-w-0">

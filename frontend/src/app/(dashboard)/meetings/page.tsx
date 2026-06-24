@@ -10,7 +10,7 @@ function MeetingsContent() {
 
   if (isDesktop) {
     return (
-      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+      <div className="flex h-screen w-full overflow-hidden bg-sidebar">
         <MailSidebar />
         <div className="flex flex-1 min-w-0 gap-[2px] pr-1.5 py-1.5 pl-0">
           <div className="flex-1 min-w-0">
@@ -27,7 +27,7 @@ function MeetingsContent() {
 
   // Mobile layout
   return (
-    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar">
+    <div className="flex h-screen w-full overflow-hidden bg-sidebar">
       <MailSidebar />
       <div className="flex flex-1 min-w-0 p-1 pl-0">
         <div className="flex-1 min-w-0">

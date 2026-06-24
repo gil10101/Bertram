@@ -5,7 +5,7 @@ import { Topbar } from "@/components/common/topbar";
 
 export function StandardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="dark flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />

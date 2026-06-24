@@ -44,34 +44,33 @@
   --inbox-border:  hsl(40, 8%, 78%);
 }
 
-/* Dark theme — follows the browser. Warm dark, not pure black. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:       hsl(40, 7%, 9%);
-    --bg-soft:  hsl(40, 6%, 11.5%);
-    --bg-deep:  hsl(38, 8%, 14%);
-    --ink:      hsl(45, 32%, 93%);
-    --ink-2:    hsl(38, 14%, 74%);
-    --ink-3:    hsl(38, 10%, 52%);
-    --rule:     hsla(40, 30%, 90%, 0.10);
-    --rule-2:   hsla(40, 30%, 90%, 0.05);
-    --chip-bg:  hsla(40, 30%, 90%, 0.05);
-    --inverse-bg: #efece4;
-    --inverse-ink: #1a1714;
-    --grid-line: hsla(40, 30%, 90%, 0.04);
+/* Dark theme — applied via `.dark` on <html> (next-themes; system is the
+   default, so system-dark users get `.dark` automatically). */
+.dark {
+  --bg:       hsl(40, 7%, 9%);
+  --bg-soft:  hsl(40, 6%, 11.5%);
+  --bg-deep:  hsl(38, 8%, 14%);
+  --ink:      hsl(45, 32%, 93%);
+  --ink-2:    hsl(38, 14%, 74%);
+  --ink-3:    hsl(38, 10%, 52%);
+  --rule:     hsla(40, 30%, 90%, 0.10);
+  --rule-2:   hsla(40, 30%, 90%, 0.05);
+  --chip-bg:  hsla(40, 30%, 90%, 0.05);
+  --inverse-bg: #efece4;
+  --inverse-ink: #1a1714;
+  --grid-line: hsla(40, 30%, 90%, 0.04);
 
-    --soft-grad: linear-gradient(160deg, hsl(40, 8%, 13%) 0%, hsl(40, 6%, 10%) 50%, hsl(36, 12%, 16%) 100%);
+  --soft-grad: linear-gradient(160deg, hsl(40, 8%, 13%) 0%, hsl(40, 6%, 10%) 50%, hsl(36, 12%, 16%) 100%);
 
-    /* Product inbox tokens — exact from the Bertram inbox */
-    --inbox-sidebar: hsl(40, 7%, 8%);
-    --inbox-bg:      hsl(40, 5.4%, 11.2%);
-    --inbox-card:    hsl(36, 15.4%, 15.3%);
-    --inbox-fg:      hsl(45, 37.5%, 93.7%);
-    --inbox-muted:   hsl(38, 15.7%, 76.3%);
-    --inbox-faint:   hsl(38, 12%, 55%);
-    --inbox-accent:  hsl(34, 5.8%, 23.7%);
-    --inbox-border:  hsl(34, 5.8%, 23.7%);
-  }
+  /* Product inbox tokens — exact from the Bertram inbox */
+  --inbox-sidebar: hsl(40, 7%, 8%);
+  --inbox-bg:      hsl(40, 5.4%, 11.2%);
+  --inbox-card:    hsl(36, 15.4%, 15.3%);
+  --inbox-fg:      hsl(45, 37.5%, 93.7%);
+  --inbox-muted:   hsl(38, 15.7%, 76.3%);
+  --inbox-faint:   hsl(38, 12%, 55%);
+  --inbox-accent:  hsl(34, 5.8%, 23.7%);
+  --inbox-border:  hsl(34, 5.8%, 23.7%);
 }
 
 html { font-size: 16px; scroll-behavior: smooth; }
@@ -243,9 +242,7 @@ img, svg { display: block; max-width: 100%; }
   z-index: 1;
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
-@media (prefers-color-scheme: dark) {
-  .grain { mix-blend-mode: screen; opacity: 0.06; }
-}
+.dark .grain { mix-blend-mode: screen; opacity: 0.06; }
 
 /* Section vertical rhythm */
 .bertram-landing section { position: relative; }

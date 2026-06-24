@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { createApiClient } from "@/lib/api-client";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { MailSidebar } from "@/components/mail/mail-sidebar";
+import { useTheme } from "next-themes";
+import { clerkAppearance } from "@/lib/clerk-appearance";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const PROVIDERS = [
   {
@@ -140,50 +143,55 @@ function ConnectedAccounts() {
   );
 }
 
-const clerkDarkAppearance = {
-  elements: {
-    rootBox: "w-full",
-    cardBox: "w-full shadow-none",
-    card: "bg-card border border-border shadow-none rounded-lg w-full",
-    navbar: "bg-card border-r-border",
-    navbarButton: "text-muted-foreground hover:text-foreground hover:bg-accent",
-    navbarButtonActive: "text-foreground bg-accent",
-    headerTitle: "text-foreground",
-    headerSubtitle: "text-muted-foreground",
-    profileSectionTitle: "text-foreground border-b-border",
-    profileSectionTitleText: "text-foreground",
-    profileSectionContent: "text-foreground",
-    profileSectionPrimaryButton: "text-paprika hover:text-paprika-500",
-    formFieldLabel: "text-muted-foreground",
-    formFieldInput:
-      "bg-background border-border text-foreground focus:ring-ring",
-    formButtonPrimary:
-      "bg-primary text-primary-foreground hover:bg-primary/90",
-    formButtonReset: "text-muted-foreground hover:text-foreground",
-    badge: "bg-accent text-accent-foreground",
-    avatarBox: "border-border",
-    pageScrollBox: "p-0",
-    page: "gap-6",
-    profilePage: "gap-6",
-    accordionTriggerButton: "text-foreground hover:bg-accent",
-    accordionContent: "text-muted-foreground",
-    menuButton: "text-muted-foreground hover:text-foreground hover:bg-accent",
-    menuList: "bg-card border-border",
-    menuItem: "text-foreground hover:bg-accent",
-  },
-  variables: {
-    colorPrimary: "#eb5e28",
-    colorText: "#F5F2E9",
-    colorTextSecondary: "#CCC5B9",
-    colorBackground: "#2D2821",
-    colorInputBackground: "#1E1D1B",
-    colorInputText: "#F5F2E9",
-    borderRadius: "0.5rem",
-  },
-};
+function AppearanceSettings() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const active = theme === "system" ? "system" : resolvedTheme;
+  const options: { key: string; label: string }[] = [
+    { key: "light", label: "Light" },
+    { key: "dark", label: "Dark" },
+    { key: "system", label: "System" },
+  ];
+  return (
+    <section>
+      <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Appearance
+      </h2>
+      <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <ThemeToggle
+            className="border border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+            size={18}
+          />
+          <div>
+            <p className="text-sm font-medium text-foreground">Theme</p>
+            <p className="text-xs text-muted-foreground">Switch between light and dark mode.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          {options.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setTheme(o.key)}
+              className={
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
+                ((theme ?? "system") === o.key
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function SettingsContent() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { resolvedTheme } = useTheme();
 
   const settingsBody = (
     <div className="mx-auto max-w-3xl">
@@ -192,6 +200,8 @@ function SettingsContent() {
       </h1>
 
       <div className="flex flex-col gap-8">
+        <AppearanceSettings />
+
         <ConnectedAccounts />
 
         <section>
@@ -202,7 +212,7 @@ function SettingsContent() {
             <UserProfile
               routing="path"
               path="/settings"
-              appearance={clerkDarkAppearance}
+              appearance={clerkAppearance(resolvedTheme === "dark")}
             />
           </div>
         </section>
@@ -212,7 +222,7 @@ function SettingsContent() {
 
   if (isDesktop) {
     return (
-      <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+      <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
         <MailSidebar />
         <div className="flex flex-1 min-w-0 gap-[2px] pr-1.5 py-1.5 pl-0">
           <div className="flex-1 min-w-0">
@@ -229,7 +239,7 @@ function SettingsContent() {
 
   // Mobile layout
   return (
-    <div className="dark flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground">
       <MailSidebar />
       <div className="flex flex-1 min-w-0 p-1 pl-0">
         <div className="flex-1 min-w-0">

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ai, auth, calendar, drafts, emails, labels, meetings, sync, threads
+from app.api.v1 import ai, auth, calendar, drafts, emails, feedback, labels, meetings, sync, threads
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(labels.router, prefix="/labels", tags=["labels"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(sync.router, prefix="/sync", tags=["sync"])
 api_router.include_router(drafts.router, prefix="/drafts", tags=["drafts"])
+api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
