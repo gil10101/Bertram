@@ -18,7 +18,7 @@ const FOOTER_COLS: { h: string; links: FooterLink[] }[] = [
   {
     h: "Resources",
     links: [
-      { label: "Docs", href: "#product" },
+      { label: "Docs", href: "/docs", internal: true },
       { label: "Privacy", href: "/privacy", internal: true },
       { label: "Terms", href: "/terms", internal: true },
     ],

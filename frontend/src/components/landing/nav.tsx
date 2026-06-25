@@ -66,6 +66,15 @@ export function Nav({
                 {l.label}
               </a>
             ))}
+            <Link
+              href="/docs"
+              className="mono"
+              style={{ fontSize: 12, color: "var(--ink-2)", letterSpacing: "0.02em", transition: "color .25s ease" }}
+              onMouseEnter={(e: any) => (e.currentTarget.style.color = "var(--ink)")}
+              onMouseLeave={(e: any) => (e.currentTarget.style.color = "var(--ink-2)")}
+            >
+              Docs
+            </Link>
           </div>
         )}
 

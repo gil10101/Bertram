@@ -12,6 +12,7 @@ import {
   Trash2,
   Settings,
   HelpCircle,
+  BookOpen,
   Mail,
   Calendar,
   X,
@@ -46,6 +47,7 @@ const managementNav: NavItem[] = [
 
 const bottomNav: NavItem[] = [
   { icon: Settings, label: "Settings", href: "/settings" },
+  { icon: BookOpen, label: "Docs", href: "/docs" },
   { icon: HelpCircle, label: "Support", href: "/support" },
 ];
 
