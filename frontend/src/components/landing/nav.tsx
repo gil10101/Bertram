@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BertramMark } from "./icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_LINKS = [
@@ -47,8 +46,7 @@ export function Nav({
         className="shell"
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}
       >
-        <Link href={homeHref} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <BertramMark size={18} />
+        <Link href={homeHref} style={{ display: "inline-flex", alignItems: "center" }}>
           <span style={{ fontFamily: "var(--font-display)", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em" }}>
             Bertram
           </span>

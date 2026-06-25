@@ -3,7 +3,6 @@
 // Footer — CTA lives in the Hero; this is just the editorial footer.
 
 import Link from "next/link";
-import { BertramMark } from "./icons";
 
 type FooterLink = { label: string; href: string; internal?: boolean };
 
@@ -47,8 +46,7 @@ export function Footer() {
           className="footer-cols"
         >
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-              <BertramMark size={20} />
+            <div style={{ display: "inline-flex", alignItems: "center" }}>
               <span style={{ fontSize: 18, fontWeight: 500, letterSpacing: "-0.02em" }}>Bertram</span>
             </div>
             <p style={{ marginTop: 14, fontSize: 13, color: "var(--ink-2)", maxWidth: "28ch", lineHeight: 1.55 }}>
